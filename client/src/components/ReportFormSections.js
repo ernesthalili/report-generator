@@ -7,7 +7,7 @@ import React from 'react';
 /**
  * A labelled add/remove string-array list inside a vulnerability.
  *   vulnIndex  – which vulnerability
- *   field      – key name (urls | parameters | methodologies | attacks | images)
+ *   field      – key name (urls | parameters | attacks)
  *   label      – human-readable section heading
  *   placeholder
  */
@@ -46,6 +46,117 @@ function VulnSubArray({ vulnIndex, field, label, placeholder, vuln, handlers }) 
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Testing Methodologies with HTTP method dropdown (RED BOX requirement)
+ */
+function MethodologiesSection({ vulnIndex, vuln, handlers }) {
+  const { addVulnArrayItem, removeVulnArrayItem, handleMethodologyChange } = handlers;
+  const methodologies = vuln.methodologies || [];
+
+  const httpMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+
+  return (
+    <div className="form-group-list">
+      <div className="list-header">
+        <label>Testing Methodologies</label>
+        <button
+          type="button"
+          onClick={() => addVulnArrayItem(vulnIndex, 'methodologies')}
+          className="btn btn-sm btn-secondary"
+        >
+          + Add
+        </button>
+      </div>
+      {methodologies.map((method, idx) => (
+        <div key={idx} className="list-item methodology-item">
+          <select
+            value={method.httpMethod || ''}
+            onChange={(e) => handleMethodologyChange(vulnIndex, idx, 'httpMethod', e.target.value)}
+            className="http-method-select"
+          >
+            <option value="">HTTP Method</option>
+            {httpMethods.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <input
+            type="text"
+            value={method.description || ''}
+            onChange={(e) => handleMethodologyChange(vulnIndex, idx, 'description', e.target.value)}
+            placeholder="e.g., Manual testing with Burp Suite"
+            className="methodology-description"
+          />
+          {methodologies.length > 1 && (
+            <button
+              type="button"
+              onClick={() => removeVulnArrayItem(vulnIndex, 'methodologies', idx)}
+              className="btn btn-sm btn-danger"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Image upload section (GREEN BOX requirement)
+ */
+function ImageUploadSection({ vulnIndex, vuln, handlers }) {
+  const { handleImageUpload, removeImage } = handlers;
+  const images = vuln.images || [];
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleImageUpload(vulnIndex, e.target.files);
+      e.target.value = ''; // Reset input so same file can be uploaded again
+    }
+  };
+
+  return (
+    <div className="form-group-list">
+      <div className="list-header">
+        <label>Proof-of-Concept Images</label>
+        <label className="btn btn-sm btn-secondary file-upload-btn">
+          📁 Upload Images
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+        </label>
+      </div>
+      {images.length > 0 && (
+        <div className="uploaded-images-list">
+          {images.map((imgPath, idx) => (
+            <div key={idx} className="uploaded-image-item">
+              <img 
+                src={imgPath} 
+                alt={`Proof ${idx + 1}`}
+                className="image-thumbnail"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+              <span className="image-filename">{imgPath.split('/').pop()}</span>
+              <button
+                type="button"
+                onClick={() => removeImage(vulnIndex, idx)}
+                className="btn btn-sm btn-danger"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {images.length === 0 && (
+        <p className="no-images-text">No images uploaded yet. Click "Upload Images" to add proof-of-concept screenshots.</p>
+      )}
     </div>
   );
 }
@@ -205,10 +316,14 @@ export function UserAccountsSection({ formData, addUserAccount, removeUserAccoun
 export function VulnerabilitiesSection({
   formData,
   addVulnerability, removeVulnerability, handleVulnChange,
-  addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange
+  addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange,
+  handleMethodologyChange, handleImageUpload, removeImage
 }) {
-  // bundle array-handlers so VulnSubArray doesn't need 3 individual props
-  const handlers = { addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange };
+  // bundle array-handlers so components don't need many individual props
+  const handlers = { 
+    addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange,
+    handleMethodologyChange, handleImageUpload, removeImage
+  };
 
   return (
     <section className="form-section">
@@ -295,11 +410,16 @@ export function VulnerabilitiesSection({
           </div>
 
           {/* ---- repeatable sub-arrays ---- */}
-          <VulnSubArray vulnIndex={vi} field="urls"          label="Affected URLs"            placeholder="e.g., /api/login"              vuln={vuln} handlers={handlers} />
-          <VulnSubArray vulnIndex={vi} field="parameters"    label="Vulnerable Parameters"    placeholder="e.g., username"              vuln={vuln} handlers={handlers} />
-          <VulnSubArray vulnIndex={vi} field="methodologies" label="Testing Methodologies"    placeholder="e.g., Manual testing"       vuln={vuln} handlers={handlers} />
-          <VulnSubArray vulnIndex={vi} field="attacks"       label="Attack Descriptions"      placeholder="e.g., Payload used: ' OR 1=1" vuln={vuln} handlers={handlers} />
-          <VulnSubArray vulnIndex={vi} field="images"        label="Proof-of-Concept Images"  placeholder="Image path or URL"          vuln={vuln} handlers={handlers} />
+          <VulnSubArray vulnIndex={vi} field="urls"       label="Affected URLs"         placeholder="e.g., /api/login"              vuln={vuln} handlers={handlers} />
+          <VulnSubArray vulnIndex={vi} field="parameters" label="Vulnerable Parameters" placeholder="e.g., username"                vuln={vuln} handlers={handlers} />
+          
+          {/* RED BOX - Testing Methodologies with HTTP method */}
+          <MethodologiesSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
+          
+          <VulnSubArray vulnIndex={vi} field="attacks"    label="Attack Descriptions"   placeholder="e.g., Payload used: ' OR 1=1" vuln={vuln} handlers={handlers} />
+          
+          {/* GREEN BOX - Image Upload */}
+          <ImageUploadSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
         </div>
       ))}
     </section>

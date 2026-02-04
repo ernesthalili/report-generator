@@ -19,6 +19,7 @@ export default function CreateReport() {
     addUserAccount, removeUserAccount, handleUserAccountChange,
     addVulnerability, removeVulnerability, handleVulnChange,
     addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange,
+    handleMethodologyChange, handleImageUpload, removeImage,
     create
   } = useReportForm();
 
@@ -54,6 +55,7 @@ export default function CreateReport() {
           formData={formData}
           addVulnerability={addVulnerability} removeVulnerability={removeVulnerability} handleVulnChange={handleVulnChange}
           addVulnArrayItem={addVulnArrayItem} removeVulnArrayItem={removeVulnArrayItem} handleVulnArrayChange={handleVulnArrayChange}
+          handleMethodologyChange={handleMethodologyChange} handleImageUpload={handleImageUpload} removeImage={removeImage}
         />
 
         <div className="form-actions">

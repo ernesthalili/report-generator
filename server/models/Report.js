@@ -15,6 +15,11 @@ const userAccountSchema = new mongoose.Schema({
   description: { type: String }
 });
 
+const methodologySchema = new mongoose.Schema({
+  description: { type: String },           // Testing methodology description
+  httpMethod:  { type: String }            // HTTP method: GET, POST, PUT, DELETE, etc.
+});
+
 const vulnerabilitySchema = new mongoose.Schema({
   // single-value fields per vulnerability
   name:          { type: String, required: true },
@@ -27,11 +32,11 @@ const vulnerabilitySchema = new mongoose.Schema({
   remediation:   { type: String },
 
   // repeatable sub-arrays  →  VULN1 URL1, VULN1 URL2 …
-  urls:          [{ type: String }],   // VULN# URL#
-  parameters:    [{ type: String }],   // VULN# PARAMETER#
-  methodologies: [{ type: String }],   // VULN# MET#
-  attacks:       [{ type: String }],   // VULN# ATTACK#   ← NEW
-  images:        [{ type: String }]    // VULN# IMAGE#    ← was dead, now used
+  urls:          [{ type: String }],          // VULN# URL#
+  parameters:    [{ type: String }],          // VULN# PARAMETER#
+  methodologies: [methodologySchema],         // VULN# MET# + HTTP method
+  attacks:       [{ type: String }],          // VULN# ATTACK#
+  images:        [{ type: String }]           // VULN# IMAGE# (file paths)
 });
 
 // ---------------------------------------------------------------------------

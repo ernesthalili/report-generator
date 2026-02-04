@@ -35,6 +35,9 @@ const templatesDir = path.join(__dirname, '../templates');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(templatesDir)) fs.mkdirSync(templatesDir, { recursive: true });
 
+// Serve uploaded files statically
+app.use('/uploads', express.static(uploadsDir));
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/reports', require('./routes/reports'));

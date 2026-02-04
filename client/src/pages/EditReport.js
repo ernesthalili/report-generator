@@ -23,6 +23,7 @@ export default function EditReport() {
     addUserAccount, removeUserAccount, handleUserAccountChange,
     addVulnerability, removeVulnerability, handleVulnChange,
     addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange,
+    handleMethodologyChange, handleImageUpload, removeImage,
     seedForm, update
   } = useReportForm();
 
@@ -89,6 +90,7 @@ export default function EditReport() {
           formData={formData}
           addVulnerability={addVulnerability} removeVulnerability={removeVulnerability} handleVulnChange={handleVulnChange}
           addVulnArrayItem={addVulnArrayItem} removeVulnArrayItem={removeVulnArrayItem} handleVulnArrayChange={handleVulnArrayChange}
+          handleMethodologyChange={handleMethodologyChange} handleImageUpload={handleImageUpload} removeImage={removeImage}
         />
 
         <div className="form-actions">

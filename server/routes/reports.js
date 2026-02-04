@@ -7,6 +7,38 @@ const Docxtemplater = require('docxtemplater');
 const PizZip = require('pizzip');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
+
+// ---------------------------------------------------------------------------
+// Multer configuration for file uploads
+// ---------------------------------------------------------------------------
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(__dirname, '../../uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    // Use timestamp + original name to avoid conflicts
+    const uniqueName = `${Date.now()}-${file.originalname}`;
+    cb(null, uniqueName);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10485760 }, // 10MB default
+  fileFilter: function (req, file, cb) {
+    // Accept images only
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  }
+});
 
 // @route   GET /api/reports
 // @desc    Get all reports for logged in user
@@ -173,6 +205,34 @@ router.delete('/:id', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting report'
+    });
+  }
+});
+
+// @route   POST /api/reports/upload-images
+// @desc    Upload vulnerability proof-of-concept images
+// @access  Private
+router.post('/upload-images', protect, upload.array('images', 10), (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No files uploaded'
+      });
+    }
+
+    // Return the file paths
+    const filePaths = req.files.map(file => `/uploads/${file.filename}`);
+    
+    res.json({
+      success: true,
+      files: filePaths
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading files'
     });
   }
 });

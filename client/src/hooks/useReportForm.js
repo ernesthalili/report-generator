@@ -17,9 +17,9 @@ export const EMPTY_VULNERABILITY = () => ({
   remediation: '',
   urls:          [''],
   parameters:    [''],
-  methodologies: [''],
+  methodologies: [{ description: '', httpMethod: '' }],  // structured: description + HTTP method
   attacks:       [''],
-  images:        ['']
+  images:        []   // empty - files will be uploaded separately
 });
 
 const BLANK_FORM = () => ({
@@ -121,15 +121,24 @@ export default function useReportForm() {
 
   // =========================================================================
   // Vulnerabilities  –  repeatable sub-array fields
-  //   field in { urls, parameters, methodologies, attacks, images }
+  //   field in { urls, parameters, attacks } → simple strings
+  //   methodologies → objects with { description, httpMethod }
+  //   images → handled separately via file upload
   // =========================================================================
   const addVulnArrayItem = useCallback((vulnIndex, field) => {
     setFormData(prev => {
       const vulnerabilities = [...prev.vulnerabilities];
-      vulnerabilities[vulnIndex] = {
-        ...vulnerabilities[vulnIndex],
-        [field]: [...vulnerabilities[vulnIndex][field], '']
-      };
+      if (field === 'methodologies') {
+        vulnerabilities[vulnIndex] = {
+          ...vulnerabilities[vulnIndex],
+          methodologies: [...vulnerabilities[vulnIndex].methodologies, { description: '', httpMethod: '' }]
+        };
+      } else {
+        vulnerabilities[vulnIndex] = {
+          ...vulnerabilities[vulnIndex],
+          [field]: [...vulnerabilities[vulnIndex][field], '']
+        };
+      }
       return { ...prev, vulnerabilities };
     });
   }, []);
@@ -155,12 +164,71 @@ export default function useReportForm() {
     });
   }, []);
 
+  // Special handler for methodology objects (description + httpMethod)
+  const handleMethodologyChange = useCallback((vulnIndex, itemIndex, subfield, value) => {
+    setFormData(prev => {
+      const vulnerabilities = [...prev.vulnerabilities];
+      const methodologies = [...vulnerabilities[vulnIndex].methodologies];
+      methodologies[itemIndex] = { ...methodologies[itemIndex], [subfield]: value };
+      vulnerabilities[vulnIndex] = { ...vulnerabilities[vulnIndex], methodologies };
+      return { ...prev, vulnerabilities };
+    });
+  }, []);
+
+  // File upload handler for images
+  const handleImageUpload = useCallback(async (vulnIndex, files) => {
+    if (!files || files.length === 0) return;
+
+    const formDataUpload = new FormData();
+    Array.from(files).forEach(file => {
+      formDataUpload.append('images', file);
+    });
+
+    try {
+      const res = await axios.post('/api/reports/upload-images', formDataUpload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.data.success) {
+        setFormData(prev => {
+          const vulnerabilities = [...prev.vulnerabilities];
+          vulnerabilities[vulnIndex] = {
+            ...vulnerabilities[vulnIndex],
+            images: [...vulnerabilities[vulnIndex].images, ...res.data.files]
+          };
+          return { ...prev, vulnerabilities };
+        });
+      }
+    } catch (err) {
+      console.error('Image upload error:', err);
+      alert('Failed to upload images');
+    }
+  }, []);
+
+  const removeImage = useCallback((vulnIndex, imageIndex) => {
+    setFormData(prev => {
+      const vulnerabilities = [...prev.vulnerabilities];
+      vulnerabilities[vulnIndex] = {
+        ...vulnerabilities[vulnIndex],
+        images: vulnerabilities[vulnIndex].images.filter((_, i) => i !== imageIndex)
+      };
+      return { ...prev, vulnerabilities };
+    });
+  }, []);
+
   // =========================================================================
   // Seed form with existing data  (used by EditReport after fetch)
   // =========================================================================
   const seedForm = useCallback((report) => {
     const ensure = (arr, fallback) => (arr && arr.length > 0 ? arr : [fallback()]);
     const ensureStrArr = (arr) => (arr && arr.length > 0 ? arr : ['']);
+    const ensureMethodologies = (arr) => {
+      if (!arr || arr.length === 0) return [{ description: '', httpMethod: '' }];
+      // Handle old string format gracefully
+      return arr.map(m => 
+        typeof m === 'string' ? { description: m, httpMethod: '' } : m
+      );
+    };
 
     setFormData({
       projectName:        report.projectName        || '',
@@ -177,9 +245,9 @@ export default function useReportForm() {
         ...v,
         urls:          ensureStrArr(v.urls),
         parameters:    ensureStrArr(v.parameters),
-        methodologies: ensureStrArr(v.methodologies),
+        methodologies: ensureMethodologies(v.methodologies),
         attacks:       ensureStrArr(v.attacks),
-        images:        ensureStrArr(v.images)
+        images:        v.images || []
       }))
     });
   }, []);
@@ -222,6 +290,8 @@ export default function useReportForm() {
     addUserAccount, removeUserAccount, handleUserAccountChange,
     addVulnerability, removeVulnerability, handleVulnChange,
     addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange,
+    handleMethodologyChange,  // NEW - for structured methodology objects
+    handleImageUpload, removeImage,  // NEW - for file uploads
     seedForm, create, update
   };
 }
