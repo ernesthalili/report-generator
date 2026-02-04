@@ -5,35 +5,42 @@ import axios from 'axios';
 // Default / blank shapes  – single source of truth
 // ---------------------------------------------------------------------------
 export const EMPTY_TARGET       = () => ({ name: '', url: '', severity: '' });
-export const EMPTY_USER_ACCOUNT = () => ({ username: '', description: '' });
+export const EMPTY_CREDENTIAL   = () => ({ username: '', description: '' });
+export const EMPTY_TESTER       = () => ({ name: '', role: '', date: '' });
+export const EMPTY_ENDPOINT     = () => ({ index: 1, http_method: '', path: '', parameter: '' });
+export const EMPTY_ATTACK       = () => ({ type: 'text', text: '', image: '', caption: '' });
+
 export const EMPTY_VULNERABILITY = () => ({
   name: '',
   severity: 'Medium',
   priority: '',
-  cvssScore: '',
-  cvssVector: '',
+  cvss_score: '',
+  cvss_vector: '',
   description: '',
   impact: '',
   remediation: '',
-  urls:          [''],
-  parameters:    [''],
-  methodologies: [{ description: '', httpMethod: '' }],  // structured: description + HTTP method
-  attacks:       [''],
-  images:        []   // empty - files will be uploaded separately
+  endpoints: [EMPTY_ENDPOINT()],  // New structured endpoints
+  attacks:   [EMPTY_ATTACK()]     // New structured attacks (text or image)
 });
 
 const BLANK_FORM = () => ({
-  projectName:        '',
-  client:             '',
-  testingCompanyName: '',
-  testingMode:        '',
-  startDate:          '',
-  endDate:            '',
-  duration:           '',
-  executiveSummary:   '',
-  targets:            [EMPTY_TARGET()],
-  userAccounts:       [EMPTY_USER_ACCOUNT()],
-  vulnerabilities:    [EMPTY_VULNERABILITY()]
+  projectName:             '',
+  client_name:             '',
+  testing_company_name:    '',
+  testing_mode:            '',
+  testing_start_date:      '',
+  testing_end_date:        '',
+  testing_duration:        '',
+  executive_summary:       '',
+  revisioner_name:         '',
+  revisioner_role:         '',
+  revisioner_date:         '',
+  approver_name:           '',
+  approver_date:           '',
+  targets:                 [EMPTY_TARGET()],
+  credentials:             [EMPTY_CREDENTIAL()],
+  testers:                 [EMPTY_TESTER()],
+  vulnerabilities:         [EMPTY_VULNERABILITY()]
 });
 
 // ---------------------------------------------------------------------------
@@ -73,24 +80,46 @@ export default function useReportForm() {
   }, []);
 
   // =========================================================================
-  // User Accounts
+  // Credentials (formerly User Accounts)
   // =========================================================================
-  const addUserAccount = useCallback(() => {
-    setFormData(prev => ({ ...prev, userAccounts: [...prev.userAccounts, EMPTY_USER_ACCOUNT()] }));
+  const addCredential = useCallback(() => {
+    setFormData(prev => ({ ...prev, credentials: [...prev.credentials, EMPTY_CREDENTIAL()] }));
   }, []);
 
-  const removeUserAccount = useCallback((index) => {
+  const removeCredential = useCallback((index) => {
     setFormData(prev => ({
       ...prev,
-      userAccounts: prev.userAccounts.filter((_, i) => i !== index)
+      credentials: prev.credentials.filter((_, i) => i !== index)
     }));
   }, []);
 
-  const handleUserAccountChange = useCallback((index, field, value) => {
+  const handleCredentialChange = useCallback((index, field, value) => {
     setFormData(prev => {
-      const userAccounts = [...prev.userAccounts];
-      userAccounts[index] = { ...userAccounts[index], [field]: value };
-      return { ...prev, userAccounts };
+      const credentials = [...prev.credentials];
+      credentials[index] = { ...credentials[index], [field]: value };
+      return { ...prev, credentials };
+    });
+  }, []);
+
+  // =========================================================================
+  // Testers
+  // =========================================================================
+  const addTester = useCallback(() => {
+    setFormData(prev => ({ ...prev, testers: [...prev.testers, EMPTY_TESTER()] }));
+  }, []);
+
+  const removeTester = useCallback((index) => {
+    setFormData(prev => ({
+      ...prev,
+      testers: prev.testers.filter((_, i) => i !== index)
+    }));
+  }, []);
+
+  const handleTesterChange = useCallback((index, field, value) => {
+    setFormData(prev => {
+      const testers = [...prev.testers];
+      testers[index] = { ...testers[index], [field]: value };
+      return { ...prev, testers };
     });
   }, []);
 
@@ -120,23 +149,24 @@ export default function useReportForm() {
   }, []);
 
   // =========================================================================
-  // Vulnerabilities  –  repeatable sub-array fields
-  //   field in { urls, parameters, attacks } → simple strings
-  //   methodologies → objects with { description, httpMethod }
-  //   images → handled separately via file upload
+  // Vulnerabilities  –  repeatable sub-array fields (endpoints and attacks)
   // =========================================================================
   const addVulnArrayItem = useCallback((vulnIndex, field) => {
     setFormData(prev => {
       const vulnerabilities = [...prev.vulnerabilities];
-      if (field === 'methodologies') {
+      if (field === 'endpoints') {
+        const currentEndpoints = vulnerabilities[vulnIndex].endpoints;
+        const newIndex = currentEndpoints.length > 0 
+          ? Math.max(...currentEndpoints.map(e => e.index || 0)) + 1 
+          : 1;
         vulnerabilities[vulnIndex] = {
           ...vulnerabilities[vulnIndex],
-          methodologies: [...vulnerabilities[vulnIndex].methodologies, { description: '', httpMethod: '' }]
+          endpoints: [...currentEndpoints, { ...EMPTY_ENDPOINT(), index: newIndex }]
         };
-      } else {
+      } else if (field === 'attacks') {
         vulnerabilities[vulnIndex] = {
           ...vulnerabilities[vulnIndex],
-          [field]: [...vulnerabilities[vulnIndex][field], '']
+          attacks: [...vulnerabilities[vulnIndex].attacks, EMPTY_ATTACK()]
         };
       }
       return { ...prev, vulnerabilities };
@@ -154,28 +184,29 @@ export default function useReportForm() {
     });
   }, []);
 
-  const handleVulnArrayChange = useCallback((vulnIndex, field, itemIndex, value) => {
+  // Handler for endpoint objects (index, http_method, path, parameter)
+  const handleEndpointChange = useCallback((vulnIndex, itemIndex, subfield, value) => {
     setFormData(prev => {
       const vulnerabilities = [...prev.vulnerabilities];
-      const arr = [...vulnerabilities[vulnIndex][field]];
-      arr[itemIndex] = value;
-      vulnerabilities[vulnIndex] = { ...vulnerabilities[vulnIndex], [field]: arr };
+      const endpoints = [...vulnerabilities[vulnIndex].endpoints];
+      endpoints[itemIndex] = { ...endpoints[itemIndex], [subfield]: value };
+      vulnerabilities[vulnIndex] = { ...vulnerabilities[vulnIndex], endpoints };
       return { ...prev, vulnerabilities };
     });
   }, []);
 
-  // Special handler for methodology objects (description + httpMethod)
-  const handleMethodologyChange = useCallback((vulnIndex, itemIndex, subfield, value) => {
+  // Handler for attack objects (type, text, image, caption)
+  const handleAttackChange = useCallback((vulnIndex, itemIndex, subfield, value) => {
     setFormData(prev => {
       const vulnerabilities = [...prev.vulnerabilities];
-      const methodologies = [...vulnerabilities[vulnIndex].methodologies];
-      methodologies[itemIndex] = { ...methodologies[itemIndex], [subfield]: value };
-      vulnerabilities[vulnIndex] = { ...vulnerabilities[vulnIndex], methodologies };
+      const attacks = [...vulnerabilities[vulnIndex].attacks];
+      attacks[itemIndex] = { ...attacks[itemIndex], [subfield]: value };
+      vulnerabilities[vulnIndex] = { ...vulnerabilities[vulnIndex], attacks };
       return { ...prev, vulnerabilities };
     });
   }, []);
 
-  // File upload handler for images
+  // File upload handler for images - now adds to attacks array as type 'image'
   const handleImageUpload = useCallback(async (vulnIndex, files) => {
     if (!files || files.length === 0) return;
 
@@ -192,9 +223,15 @@ export default function useReportForm() {
       if (res.data.success) {
         setFormData(prev => {
           const vulnerabilities = [...prev.vulnerabilities];
+          const newImageAttacks = res.data.files.map(filePath => ({
+            type: 'image',
+            text: '',
+            image: filePath,
+            caption: ''
+          }));
           vulnerabilities[vulnIndex] = {
             ...vulnerabilities[vulnIndex],
-            images: [...vulnerabilities[vulnIndex].images, ...res.data.files]
+            attacks: [...vulnerabilities[vulnIndex].attacks, ...newImageAttacks]
           };
           return { ...prev, vulnerabilities };
         });
@@ -205,12 +242,12 @@ export default function useReportForm() {
     }
   }, []);
 
-  const removeImage = useCallback((vulnIndex, imageIndex) => {
+  const removeAttack = useCallback((vulnIndex, attackIndex) => {
     setFormData(prev => {
       const vulnerabilities = [...prev.vulnerabilities];
       vulnerabilities[vulnIndex] = {
         ...vulnerabilities[vulnIndex],
-        images: vulnerabilities[vulnIndex].images.filter((_, i) => i !== imageIndex)
+        attacks: vulnerabilities[vulnIndex].attacks.filter((_, i) => i !== attackIndex)
       };
       return { ...prev, vulnerabilities };
     });
@@ -221,33 +258,48 @@ export default function useReportForm() {
   // =========================================================================
   const seedForm = useCallback((report) => {
     const ensure = (arr, fallback) => (arr && arr.length > 0 ? arr : [fallback()]);
-    const ensureStrArr = (arr) => (arr && arr.length > 0 ? arr : ['']);
-    const ensureMethodologies = (arr) => {
-      if (!arr || arr.length === 0) return [{ description: '', httpMethod: '' }];
-      // Handle old string format gracefully
-      return arr.map(m => 
-        typeof m === 'string' ? { description: m, httpMethod: '' } : m
-      );
+    const ensureEndpoints = (arr) => {
+      if (!arr || arr.length === 0) return [EMPTY_ENDPOINT()];
+      return arr.map((e, idx) => ({
+        index: e.index || idx + 1,
+        http_method: e.http_method || '',
+        path: e.path || '',
+        parameter: e.parameter || ''
+      }));
+    };
+    const ensureAttacks = (arr) => {
+      if (!arr || arr.length === 0) return [EMPTY_ATTACK()];
+      return arr.map(a => ({
+        type: a.type || 'text',
+        text: a.text || '',
+        image: a.image || '',
+        caption: a.caption || ''
+      }));
     };
 
     setFormData({
-      projectName:        report.projectName        || '',
-      client:             report.client             || '',
-      testingCompanyName: report.testingCompanyName || '',
-      testingMode:        report.testingMode        || '',
-      startDate:          report.startDate ? report.startDate.split('T')[0] : '',
-      endDate:            report.endDate   ? report.endDate.split('T')[0]   : '',
-      duration:           report.duration           || '',
-      executiveSummary:   report.executiveSummary   || '',
-      targets:            ensure(report.targets,         EMPTY_TARGET),
-      userAccounts:       ensure(report.userAccounts,    EMPTY_USER_ACCOUNT),
-      vulnerabilities:    ensure(report.vulnerabilities, EMPTY_VULNERABILITY).map(v => ({
+      projectName:             report.projectName             || '',
+      client_name:             report.client_name             || report.client || '',  // backward compat
+      testing_company_name:    report.testing_company_name    || report.testingCompanyName || '',
+      testing_mode:            report.testing_mode            || report.testingMode || '',
+      testing_start_date:      report.testing_start_date ? report.testing_start_date.split('T')[0] : (report.startDate ? report.startDate.split('T')[0] : ''),
+      testing_end_date:        report.testing_end_date   ? report.testing_end_date.split('T')[0]   : (report.endDate ? report.endDate.split('T')[0] : ''),
+      testing_duration:        report.testing_duration        || report.duration || '',
+      executive_summary:       report.executive_summary       || report.executiveSummary || '',
+      revisioner_name:         report.revisioner_name         || '',
+      revisioner_role:         report.revisioner_role         || '',
+      revisioner_date:         report.revisioner_date ? report.revisioner_date.split('T')[0] : '',
+      approver_name:           report.approver_name           || '',
+      approver_date:           report.approver_date ? report.approver_date.split('T')[0] : '',
+      targets:                 ensure(report.targets,                    EMPTY_TARGET),
+      credentials:             ensure(report.credentials || report.userAccounts, EMPTY_CREDENTIAL),  // backward compat
+      testers:                 ensure(report.testers,                    EMPTY_TESTER),
+      vulnerabilities:         ensure(report.vulnerabilities,            EMPTY_VULNERABILITY).map(v => ({
         ...v,
-        urls:          ensureStrArr(v.urls),
-        parameters:    ensureStrArr(v.parameters),
-        methodologies: ensureMethodologies(v.methodologies),
-        attacks:       ensureStrArr(v.attacks),
-        images:        v.images || []
+        cvss_score:  v.cvss_score || v.cvssScore || '',  // backward compat
+        cvss_vector: v.cvss_vector || v.cvssVector || '',
+        endpoints:   ensureEndpoints(v.endpoints),
+        attacks:     ensureAttacks(v.attacks)
       }))
     });
   }, []);
@@ -287,11 +339,12 @@ export default function useReportForm() {
     formData, loading, error,
     handleChange,
     addTarget, removeTarget, handleTargetChange,
-    addUserAccount, removeUserAccount, handleUserAccountChange,
+    addCredential, removeCredential, handleCredentialChange,
+    addTester, removeTester, handleTesterChange,
     addVulnerability, removeVulnerability, handleVulnChange,
-    addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange,
-    handleMethodologyChange,  // NEW - for structured methodology objects
-    handleImageUpload, removeImage,  // NEW - for file uploads
+    addVulnArrayItem, removeVulnArrayItem,
+    handleEndpointChange, handleAttackChange,
+    handleImageUpload, removeAttack,
     seedForm, create, update
   };
 }

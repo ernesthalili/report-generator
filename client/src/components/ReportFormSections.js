@@ -5,94 +5,67 @@ import React from 'react';
 // ---------------------------------------------------------------------------
 
 /**
- * A labelled add/remove string-array list inside a vulnerability.
- *   vulnIndex  – which vulnerability
- *   field      – key name (urls | parameters | attacks)
- *   label      – human-readable section heading
- *   placeholder
+ * Endpoints section - structured with index, http_method, path, parameter
  */
-function VulnSubArray({ vulnIndex, field, label, placeholder, vuln, handlers }) {
-  const { addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange } = handlers;
-  const items = vuln[field];
-
-  return (
-    <div className="form-group-list">
-      <div className="list-header">
-        <label>{label}</label>
-        <button
-          type="button"
-          onClick={() => addVulnArrayItem(vulnIndex, field)}
-          className="btn btn-sm btn-secondary"
-        >
-          + Add
-        </button>
-      </div>
-      {items.map((val, idx) => (
-        <div key={idx} className="list-item">
-          <input
-            type="text"
-            value={val}
-            onChange={(e) => handleVulnArrayChange(vulnIndex, field, idx, e.target.value)}
-            placeholder={placeholder}
-          />
-          {items.length > 1 && (
-            <button
-              type="button"
-              onClick={() => removeVulnArrayItem(vulnIndex, field, idx)}
-              className="btn btn-sm btn-danger"
-            >
-              ×
-            </button>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/**
- * Testing Methodologies with HTTP method dropdown (RED BOX requirement)
- */
-function MethodologiesSection({ vulnIndex, vuln, handlers }) {
-  const { addVulnArrayItem, removeVulnArrayItem, handleMethodologyChange } = handlers;
-  const methodologies = vuln.methodologies || [];
+function EndpointsSection({ vulnIndex, vuln, handlers }) {
+  const { addVulnArrayItem, removeVulnArrayItem, handleEndpointChange } = handlers;
+  const endpoints = vuln.endpoints || [];
 
   const httpMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 
   return (
     <div className="form-group-list">
       <div className="list-header">
-        <label>Testing Methodologies</label>
+        <label>Affected Endpoints</label>
         <button
           type="button"
-          onClick={() => addVulnArrayItem(vulnIndex, 'methodologies')}
+          onClick={() => addVulnArrayItem(vulnIndex, 'endpoints')}
           className="btn btn-sm btn-secondary"
         >
-          + Add
+          + Add Endpoint
         </button>
       </div>
-      {methodologies.map((method, idx) => (
-        <div key={idx} className="list-item methodology-item">
+      {endpoints.map((endpoint, idx) => (
+        <div key={idx} className="list-item endpoint-item" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input
+            type="number"
+            value={endpoint.index || idx + 1}
+            onChange={(e) => handleEndpointChange(vulnIndex, idx, 'index', parseInt(e.target.value) || 1)}
+            placeholder="#"
+            className="endpoint-index"
+            style={{ width: '60px', flexShrink: 0 }}
+          />
           <select
-            value={method.httpMethod || ''}
-            onChange={(e) => handleMethodologyChange(vulnIndex, idx, 'httpMethod', e.target.value)}
+            value={endpoint.http_method || ''}
+            onChange={(e) => handleEndpointChange(vulnIndex, idx, 'http_method', e.target.value)}
             className="http-method-select"
+            style={{ width: '110px', flexShrink: 0 }}
           >
-            <option value="">HTTP Method</option>
+            <option value="">Method</option>
             {httpMethods.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
           <input
             type="text"
-            value={method.description || ''}
-            onChange={(e) => handleMethodologyChange(vulnIndex, idx, 'description', e.target.value)}
-            placeholder="e.g., Manual testing with Burp Suite"
-            className="methodology-description"
+            value={endpoint.path || ''}
+            onChange={(e) => handleEndpointChange(vulnIndex, idx, 'path', e.target.value)}
+            placeholder="e.g., /api/login"
+            className="endpoint-path"
+            style={{ flex: '2', minWidth: '150px' }}
           />
-          {methodologies.length > 1 && (
+          <input
+            type="text"
+            value={endpoint.parameter || ''}
+            onChange={(e) => handleEndpointChange(vulnIndex, idx, 'parameter', e.target.value)}
+            placeholder="e.g., username"
+            className="endpoint-parameter"
+            style={{ flex: '1', minWidth: '120px' }}
+          />
+          {endpoints.length > 1 && (
             <button
               type="button"
-              onClick={() => removeVulnArrayItem(vulnIndex, 'methodologies', idx)}
+              onClick={() => removeVulnArrayItem(vulnIndex, 'endpoints', idx)}
               className="btn btn-sm btn-danger"
+              style={{ flexShrink: 0 }}
             >
               ×
             </button>
@@ -104,68 +77,110 @@ function MethodologiesSection({ vulnIndex, vuln, handlers }) {
 }
 
 /**
- * Image upload section (GREEN BOX requirement)
+ * Attacks section - can be text or image with caption
  */
-function ImageUploadSection({ vulnIndex, vuln, handlers }) {
-  const { handleImageUpload, removeImage } = handlers;
-  const images = vuln.images || [];
+function AttacksSection({ vulnIndex, vuln, handlers }) {
+  const { addVulnArrayItem, removeAttack, handleAttackChange, handleImageUpload } = handlers;
+  const attacks = vuln.attacks || [];
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     if (e.target.files && e.target.files.length > 0) {
-      handleImageUpload(vulnIndex, e.target.files);
-      e.target.value = ''; // Reset input so same file can be uploaded again
+      await handleImageUpload(vulnIndex, e.target.files);
+      e.target.value = ''; // Reset input
     }
   };
 
   return (
     <div className="form-group-list">
       <div className="list-header">
-        <label>Proof-of-Concept Images</label>
-        <label className="btn btn-sm btn-secondary file-upload-btn">
-          📁 Upload Images
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
-        </label>
-      </div>
-      {images.length > 0 && (
-        <div className="uploaded-images-list">
-          {images.map((imgPath, idx) => (
-            <div key={idx} className="uploaded-image-item">
-              <img 
-                src={imgPath} 
-                alt={`Proof ${idx + 1}`}
-                className="image-thumbnail"
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
-              <span className="image-filename">{imgPath.split('/').pop()}</span>
-              <button
-                type="button"
-                onClick={() => removeImage(vulnIndex, idx)}
-                className="btn btn-sm btn-danger"
-              >
-                ×
-              </button>
-            </div>
-          ))}
+        <label>Attacks / Proof of Concept</label>
+        <div>
+          <button
+            type="button"
+            onClick={() => addVulnArrayItem(vulnIndex, 'attacks')}
+            className="btn btn-sm btn-secondary"
+            style={{ marginRight: '8px' }}
+          >
+            + Add Text
+          </button>
+          <label className="btn btn-sm btn-secondary file-upload-btn" style={{ marginBottom: 0 }}>
+            📁 Upload Images
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+          </label>
         </div>
-      )}
-      {images.length === 0 && (
-        <p className="no-images-text">No images uploaded yet. Click "Upload Images" to add proof-of-concept screenshots.</p>
-      )}
+      </div>
+      {attacks.map((attack, idx) => (
+        <div key={idx} className="list-item attack-item">
+          <div className="attack-type-row">
+            <select
+              value={attack.type || 'text'}
+              onChange={(e) => handleAttackChange(vulnIndex, idx, 'type', e.target.value)}
+              className="attack-type-select"
+            >
+              <option value="text">Text</option>
+              <option value="image">Image</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => removeAttack(vulnIndex, idx)}
+              className="btn btn-sm btn-danger"
+            >
+              ×
+            </button>
+          </div>
+          
+          {attack.type === 'text' ? (
+            <textarea
+              value={attack.text || ''}
+              onChange={(e) => handleAttackChange(vulnIndex, idx, 'text', e.target.value)}
+              placeholder="Describe the attack or payload used..."
+              rows="3"
+              className="attack-text"
+            />
+          ) : (
+            <div className="attack-image-fields">
+              <input
+                type="text"
+                value={attack.image || ''}
+                onChange={(e) => handleAttackChange(vulnIndex, idx, 'image', e.target.value)}
+                placeholder="Image filename (e.g., screenshot.png)"
+                className="attack-image-path"
+              />
+              {attack.image && (
+                <img 
+                  src={attack.image} 
+                  alt={`Attack proof ${idx + 1}`}
+                  className="image-thumbnail"
+                  style={{ maxWidth: '200px', maxHeight: '150px', marginTop: '8px' }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              )}
+              <input
+                type="text"
+                value={attack.caption || ''}
+                onChange={(e) => handleAttackChange(vulnIndex, idx, 'caption', e.target.value)}
+                placeholder="Image caption"
+                className="attack-image-caption"
+              />
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Exported section components  – each receives the slice of props it needs
+// Exported section components
 // ---------------------------------------------------------------------------
 
-/** Static fields: project info + client + dates + executive summary */
+/** Static fields: project info + client + dates + executive summary + revisioner + approver */
 export function StaticFieldsSection({ formData, handleChange }) {
   return (
     <section className="form-section">
@@ -179,49 +194,85 @@ export function StaticFieldsSection({ formData, handleChange }) {
 
       <div className="form-row">
         <div className="form-group">
-          <label>Client</label>
-          <input type="text" name="client" value={formData.client}
+          <label>Client Name</label>
+          <input type="text" name="client_name" value={formData.client_name}
             onChange={handleChange} placeholder="Client / target company name" />
         </div>
 
         <div className="form-group">
           <label>Testing Company Name</label>
-          <input type="text" name="testingCompanyName" value={formData.testingCompanyName}
+          <input type="text" name="testing_company_name" value={formData.testing_company_name}
             onChange={handleChange} placeholder="Your company name" />
         </div>
       </div>
 
       <div className="form-group">
         <label>Testing Mode</label>
-        <input type="text" name="testingMode" value={formData.testingMode}
-          onChange={handleChange} placeholder="e.g., Black Box, White Box, Grey Box" />
+        <input type="text" name="testing_mode" value={formData.testing_mode}
+          onChange={handleChange} placeholder="e.g., Black-box, White-box, Grey-box" />
       </div>
 
       <div className="form-row">
         <div className="form-group">
-          <label>Start of Activity</label>
-          <input type="date" name="startDate" value={formData.startDate}
+          <label>Testing Start Date</label>
+          <input type="date" name="testing_start_date" value={formData.testing_start_date}
             onChange={handleChange} />
         </div>
 
         <div className="form-group">
-          <label>End of Activity</label>
-          <input type="date" name="endDate" value={formData.endDate}
+          <label>Testing End Date</label>
+          <input type="date" name="testing_end_date" value={formData.testing_end_date}
             onChange={handleChange} />
         </div>
 
         <div className="form-group">
-          <label>Duration of Activity</label>
-          <input type="text" name="duration" value={formData.duration}
-            onChange={handleChange} placeholder="e.g., 5 days" />
+          <label>Testing Duration</label>
+          <input type="text" name="testing_duration" value={formData.testing_duration}
+            onChange={handleChange} placeholder="e.g., 10 days, 2 weeks" />
         </div>
       </div>
 
       <div className="form-group">
         <label>Executive Summary</label>
-        <textarea name="executiveSummary" value={formData.executiveSummary}
+        <textarea name="executive_summary" value={formData.executive_summary}
           onChange={handleChange} rows="5"
           placeholder="High-level summary of the engagement, scope, and key findings…" />
+      </div>
+
+      <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Review & Approval</h3>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label>Revisioner Name</label>
+          <input type="text" name="revisioner_name" value={formData.revisioner_name}
+            onChange={handleChange} placeholder="e.g., Jane Doe" />
+        </div>
+
+        <div className="form-group">
+          <label>Revisioner Role</label>
+          <input type="text" name="revisioner_role" value={formData.revisioner_role}
+            onChange={handleChange} placeholder="e.g., Lead Security Analyst" />
+        </div>
+
+        <div className="form-group">
+          <label>Revisioner Date</label>
+          <input type="date" name="revisioner_date" value={formData.revisioner_date}
+            onChange={handleChange} />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label>Approver Name</label>
+          <input type="text" name="approver_name" value={formData.approver_name}
+            onChange={handleChange} placeholder="e.g., John Smith" />
+        </div>
+
+        <div className="form-group">
+          <label>Approver Date</label>
+          <input type="date" name="approver_date" value={formData.approver_date}
+            onChange={handleChange} />
+        </div>
       </div>
     </section>
   );
@@ -275,35 +326,35 @@ export function TargetsSection({ formData, addTarget, removeTarget, handleTarget
   );
 }
 
-/** Dynamic: User Accounts list */
-export function UserAccountsSection({ formData, addUserAccount, removeUserAccount, handleUserAccountChange }) {
+/** Dynamic: Credentials list (formerly User Accounts) */
+export function CredentialsSection({ formData, addCredential, removeCredential, handleCredentialChange }) {
   return (
     <section className="form-section">
       <div className="section-header">
-        <h2>Test User Accounts</h2>
-        <button type="button" onClick={addUserAccount} className="btn btn-sm btn-secondary">+ Add User Account</button>
+        <h2>Test Credentials</h2>
+        <button type="button" onClick={addCredential} className="btn btn-sm btn-secondary">+ Add Credential</button>
       </div>
 
-      {formData.userAccounts.map((account, index) => (
+      {formData.credentials.map((cred, index) => (
         <div key={index} className="form-group-array">
           <div className="array-header">
-            <h4>User Account {index + 1}</h4>
-            {formData.userAccounts.length > 1 && (
-              <button type="button" onClick={() => removeUserAccount(index)} className="btn btn-sm btn-danger">Remove</button>
+            <h4>Credential {index + 1}</h4>
+            {formData.credentials.length > 1 && (
+              <button type="button" onClick={() => removeCredential(index)} className="btn btn-sm btn-danger">Remove</button>
             )}
           </div>
           <div className="form-row">
             <div className="form-group">
               <label>Username</label>
-              <input type="text" value={account.username}
-                onChange={(e) => handleUserAccountChange(index, 'username', e.target.value)}
+              <input type="text" value={cred.username}
+                onChange={(e) => handleCredentialChange(index, 'username', e.target.value)}
                 placeholder="testuser@example.com" />
             </div>
             <div className="form-group">
               <label>Description</label>
-              <input type="text" value={account.description}
-                onChange={(e) => handleUserAccountChange(index, 'description', e.target.value)}
-                placeholder="e.g., Admin user, Regular user" />
+              <input type="text" value={cred.description}
+                onChange={(e) => handleCredentialChange(index, 'description', e.target.value)}
+                placeholder="e.g., Admin account for testing" />
             </div>
           </div>
         </div>
@@ -312,17 +363,60 @@ export function UserAccountsSection({ formData, addUserAccount, removeUserAccoun
   );
 }
 
-/** Dynamic: Vulnerabilities list (the big one) */
+/** Dynamic: Testers list */
+export function TestersSection({ formData, addTester, removeTester, handleTesterChange }) {
+  return (
+    <section className="form-section">
+      <div className="section-header">
+        <h2>Testers</h2>
+        <button type="button" onClick={addTester} className="btn btn-sm btn-secondary">+ Add Tester</button>
+      </div>
+
+      {formData.testers.map((tester, index) => (
+        <div key={index} className="form-group-array">
+          <div className="array-header">
+            <h4>Tester {index + 1}</h4>
+            {formData.testers.length > 1 && (
+              <button type="button" onClick={() => removeTester(index)} className="btn btn-sm btn-danger">Remove</button>
+            )}
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Name</label>
+              <input type="text" value={tester.name}
+                onChange={(e) => handleTesterChange(index, 'name', e.target.value)}
+                placeholder="e.g., Alice Johnson" />
+            </div>
+            <div className="form-group">
+              <label>Role</label>
+              <input type="text" value={tester.role}
+                onChange={(e) => handleTesterChange(index, 'role', e.target.value)}
+                placeholder="e.g., Penetration Tester" />
+            </div>
+            <div className="form-group">
+              <label>Date</label>
+              <input type="date" value={tester.date}
+                onChange={(e) => handleTesterChange(index, 'date', e.target.value)} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/** Dynamic: Vulnerabilities list */
 export function VulnerabilitiesSection({
   formData,
   addVulnerability, removeVulnerability, handleVulnChange,
-  addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange,
-  handleMethodologyChange, handleImageUpload, removeImage
+  addVulnArrayItem, removeVulnArrayItem,
+  handleEndpointChange, handleAttackChange,
+  handleImageUpload, removeAttack
 }) {
-  // bundle array-handlers so components don't need many individual props
   const handlers = { 
-    addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange,
-    handleMethodologyChange, handleImageUpload, removeImage
+    addVulnArrayItem, removeVulnArrayItem,
+    handleEndpointChange, handleAttackChange,
+    handleImageUpload, removeAttack
   };
 
   return (
@@ -373,14 +467,14 @@ export function VulnerabilitiesSection({
           <div className="form-row">
             <div className="form-group">
               <label>CVSS Score</label>
-              <input type="text" value={vuln.cvssScore}
-                onChange={(e) => handleVulnChange(vi, 'cvssScore', e.target.value)}
+              <input type="text" value={vuln.cvss_score}
+                onChange={(e) => handleVulnChange(vi, 'cvss_score', e.target.value)}
                 placeholder="e.g., 9.8" />
             </div>
             <div className="form-group">
               <label>CVSS Vector</label>
-              <input type="text" value={vuln.cvssVector}
-                onChange={(e) => handleVulnChange(vi, 'cvssVector', e.target.value)}
+              <input type="text" value={vuln.cvss_vector}
+                onChange={(e) => handleVulnChange(vi, 'cvss_vector', e.target.value)}
                 placeholder="CVSS:3.1/AV:N/AC:L/…" />
             </div>
           </div>
@@ -409,17 +503,11 @@ export function VulnerabilitiesSection({
               placeholder="How to fix this vulnerability…" />
           </div>
 
-          {/* ---- repeatable sub-arrays ---- */}
-          <VulnSubArray vulnIndex={vi} field="urls"       label="Affected URLs"         placeholder="e.g., /api/login"              vuln={vuln} handlers={handlers} />
-          <VulnSubArray vulnIndex={vi} field="parameters" label="Vulnerable Parameters" placeholder="e.g., username"                vuln={vuln} handlers={handlers} />
+          {/* Endpoints section */}
+          <EndpointsSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
           
-          {/* RED BOX - Testing Methodologies with HTTP method */}
-          <MethodologiesSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
-          
-          <VulnSubArray vulnIndex={vi} field="attacks"    label="Attack Descriptions"   placeholder="e.g., Payload used: ' OR 1=1" vuln={vuln} handlers={handlers} />
-          
-          {/* GREEN BOX - Image Upload */}
-          <ImageUploadSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
+          {/* Attacks section (text and images) */}
+          <AttacksSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
         </div>
       ))}
     </section>

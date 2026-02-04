@@ -15,9 +15,24 @@ const userAccountSchema = new mongoose.Schema({
   description: { type: String }
 });
 
-const methodologySchema = new mongoose.Schema({
-  description: { type: String },           // Testing methodology description
-  httpMethod:  { type: String }            // HTTP method: GET, POST, PUT, DELETE, etc.
+const testerSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  role: { type: String },
+  date: { type: Date }
+});
+
+const endpointSchema = new mongoose.Schema({
+  index:       { type: Number },
+  http_method: { type: String },
+  path:        { type: String },
+  parameter:   { type: String }
+});
+
+const attackSchema = new mongoose.Schema({
+  type:    { type: String, enum: ['text', 'image'], required: true },
+  text:    { type: String },   // For text type
+  image:   { type: String },   // For image type (file path or name)
+  caption: { type: String }    // For image type (caption)
 });
 
 const vulnerabilitySchema = new mongoose.Schema({
@@ -25,18 +40,17 @@ const vulnerabilitySchema = new mongoose.Schema({
   name:          { type: String, required: true },
   severity:      { type: String, required: true, enum: ['Critical', 'High', 'Medium', 'Low', 'Informational'] },
   priority:      { type: String },
-  cvssScore:     { type: String },
-  cvssVector:    { type: String },
+  cvss_score:    { type: Number },          // Changed to cvss_score (snake_case) and Number
+  cvss_vector:   { type: String },          // Changed to cvss_vector (snake_case)
   description:   { type: String },
   impact:        { type: String },
   remediation:   { type: String },
 
-  // repeatable sub-arrays  →  VULN1 URL1, VULN1 URL2 …
-  urls:          [{ type: String }],          // VULN# URL#
-  parameters:    [{ type: String }],          // VULN# PARAMETER#
-  methodologies: [methodologySchema],         // VULN# MET# + HTTP method
-  attacks:       [{ type: String }],          // VULN# ATTACK#
-  images:        [{ type: String }]           // VULN# IMAGE# (file paths)
+  // New structure: endpoints instead of separate urls/parameters/methodologies
+  endpoints:     [endpointSchema],
+  
+  // New structure: attacks can be text or images with captions
+  attacks:       [attackSchema]
 });
 
 // ---------------------------------------------------------------------------
@@ -52,18 +66,28 @@ const reportSchema = new mongoose.Schema({
   },
 
   // ---- STATIC fields (appear exactly once per report) ----
-  projectName:        { type: String, required: [true, 'Please provide a project name'], trim: true },
-  client:             { type: String },                // CLIENT
-  testingCompanyName: { type: String },                // TESTING COMPANY NAME
-  testingMode:        { type: String },                // TESTING MODE
-  startDate:          { type: Date },                  // START OF ACTIVITY
-  endDate:            { type: Date },                  // END OF ACTIVITY
-  duration:           { type: String },                // DURATION OF ACTIVITY  (free text: "5 days", "2 weeks" …)
-  executiveSummary:   { type: String },                // EXECUTIVE SUMMARY
+  projectName:             { type: String, required: [true, 'Please provide a project name'], trim: true },
+  client_name:             { type: String },                // CLIENT (renamed from 'client')
+  testing_company_name:    { type: String },                // TESTING COMPANY NAME (renamed from 'testingCompanyName')
+  testing_mode:            { type: String },                // TESTING MODE (renamed from 'testingMode')
+  testing_start_date:      { type: Date },                  // START OF ACTIVITY (renamed from 'startDate')
+  testing_end_date:        { type: Date },                  // END OF ACTIVITY (renamed from 'endDate')
+  testing_duration:        { type: String },                // DURATION OF ACTIVITY (renamed from 'duration')
+  executive_summary:       { type: String },                // EXECUTIVE SUMMARY (renamed from 'executiveSummary')
+  
+  // ---- NEW fields for revisioner ----
+  revisioner_name:         { type: String },
+  revisioner_role:         { type: String },
+  revisioner_date:         { type: Date },
+  
+  // ---- NEW fields for approver ----
+  approver_name:           { type: String },
+  approver_date:           { type: Date },
 
   // ---- DYNAMIC collections (appear N times per report) ----
   targets:         [targetSchema],          // TARGET#, TARGET# URL, TARGET# SEVERITY
-  userAccounts:    [userAccountSchema],     // USERNAME#, USERNAME# DESCRIPTION
+  credentials:     [userAccountSchema],     // USERNAME#, USERNAME# DESCRIPTION (renamed from 'userAccounts')
+  testers:         [testerSchema],          // NEW: Testers array
   vulnerabilities: [vulnerabilitySchema],   // VULNERABILITY# …
 
   // ---------------------------------------------------------------------------

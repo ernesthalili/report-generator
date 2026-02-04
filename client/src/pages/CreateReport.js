@@ -4,7 +4,8 @@ import useReportForm from '../hooks/useReportForm';
 import {
   StaticFieldsSection,
   TargetsSection,
-  UserAccountsSection,
+  CredentialsSection,
+  TestersSection,
   VulnerabilitiesSection
 } from '../components/ReportFormSections';
 import './ReportForm.css';
@@ -16,10 +17,12 @@ export default function CreateReport() {
     formData, loading, error,
     handleChange,
     addTarget, removeTarget, handleTargetChange,
-    addUserAccount, removeUserAccount, handleUserAccountChange,
+    addCredential, removeCredential, handleCredentialChange,
+    addTester, removeTester, handleTesterChange,
     addVulnerability, removeVulnerability, handleVulnChange,
-    addVulnArrayItem, removeVulnArrayItem, handleVulnArrayChange,
-    handleMethodologyChange, handleImageUpload, removeImage,
+    addVulnArrayItem, removeVulnArrayItem,
+    handleEndpointChange, handleAttackChange,
+    handleImageUpload, removeAttack,
     create
   } = useReportForm();
 
@@ -46,16 +49,22 @@ export default function CreateReport() {
           addTarget={addTarget} removeTarget={removeTarget} handleTargetChange={handleTargetChange}
         />
 
-        <UserAccountsSection
+        <CredentialsSection
           formData={formData}
-          addUserAccount={addUserAccount} removeUserAccount={removeUserAccount} handleUserAccountChange={handleUserAccountChange}
+          addCredential={addCredential} removeCredential={removeCredential} handleCredentialChange={handleCredentialChange}
+        />
+
+        <TestersSection
+          formData={formData}
+          addTester={addTester} removeTester={removeTester} handleTesterChange={handleTesterChange}
         />
 
         <VulnerabilitiesSection
           formData={formData}
           addVulnerability={addVulnerability} removeVulnerability={removeVulnerability} handleVulnChange={handleVulnChange}
-          addVulnArrayItem={addVulnArrayItem} removeVulnArrayItem={removeVulnArrayItem} handleVulnArrayChange={handleVulnArrayChange}
-          handleMethodologyChange={handleMethodologyChange} handleImageUpload={handleImageUpload} removeImage={removeImage}
+          addVulnArrayItem={addVulnArrayItem} removeVulnArrayItem={removeVulnArrayItem}
+          handleEndpointChange={handleEndpointChange} handleAttackChange={handleAttackChange}
+          handleImageUpload={handleImageUpload} removeAttack={removeAttack}
         />
 
         <div className="form-actions">
