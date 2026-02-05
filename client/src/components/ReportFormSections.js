@@ -33,7 +33,7 @@ function EndpointsSection({ vulnIndex, vuln, handlers }) {
             onChange={(e) => handleEndpointChange(vulnIndex, idx, 'index', parseInt(e.target.value) || 1)}
             placeholder="#"
             className="endpoint-index"
-            style={{ width: '60px', flexShrink: 0 }}
+            style={{ width: '5px', flexShrink: 0 }}
           />
           <select
             value={endpoint.http_method || ''}
