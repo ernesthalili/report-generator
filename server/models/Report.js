@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const targetSchema = new mongoose.Schema({
   name:     { type: String, required: true },
   url:      { type: String, required: true },
-  severity: { type: String, enum: ['Critical', 'High', 'Medium', 'Low', 'Informational'] }
+  severity: { type: String }  // Removed enum to allow Italian values
 });
 
 const userAccountSchema = new mongoose.Schema({
@@ -38,7 +38,7 @@ const attackSchema = new mongoose.Schema({
 const vulnerabilitySchema = new mongoose.Schema({
   // single-value fields per vulnerability
   name:          { type: String, required: true },
-  severity:      { type: String, required: true, enum: ['Critical', 'High', 'Medium', 'Low', 'Informational'] },
+  severity:      { type: String, required: true },  // Removed enum to allow Italian values
   priority:      { type: String },
   cvss_score:    { type: Number },          // Changed to cvss_score (snake_case) and Number
   cvss_vector:   { type: String },          // Changed to cvss_vector (snake_case)

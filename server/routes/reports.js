@@ -65,7 +65,13 @@ const imageOpts = {
 // ---------------------------------------------------------------------------
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadsDir = path.join(__dirname, '../../uploads');
+    // Extract reportId and vulnIndex from request body or query
+    const reportId = req.body.reportId || req.query.reportId || 'temp';
+    const vulnIndex = req.body.vulnIndex || req.query.vulnIndex || '0';
+    
+    // Create path: /uploads/report-{reportId}/vuln-{vulnIndex}/
+    const uploadsDir = path.join(__dirname, '../../uploads', `report-${reportId}`, `vuln-${vulnIndex}`);
+    
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
@@ -272,8 +278,13 @@ router.post('/upload-images', protect, upload.array('images', 10), (req, res) =>
       });
     }
 
-    // Return the file paths
-    const filePaths = req.files.map(file => `/uploads/${file.filename}`);
+    const reportId = req.body.reportId || req.query.reportId || 'temp';
+    const vulnIndex = req.body.vulnIndex || req.query.vulnIndex || '0';
+
+    // Return the file paths with the new structure
+    const filePaths = req.files.map(file => 
+      `/uploads/report-${reportId}/vuln-${vulnIndex}/${file.filename}`
+    );
     
     res.json({
       success: true,

@@ -79,13 +79,13 @@ function EndpointsSection({ vulnIndex, vuln, handlers }) {
 /**
  * Attacks section - can be text or image with caption
  */
-function AttacksSection({ vulnIndex, vuln, handlers }) {
+function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
   const { addVulnArrayItem, removeAttack, handleAttackChange, handleImageUpload } = handlers;
   const attacks = vuln.attacks || [];
 
   const handleFileChange = async (e) => {
     if (e.target.files && e.target.files.length > 0) {
-      await handleImageUpload(vulnIndex, e.target.files);
+      await handleImageUpload(vulnIndex, e.target.files, reportId);
       e.target.value = ''; // Reset input
     }
   };
@@ -209,51 +209,46 @@ export function StaticFieldsSection({ formData, handleChange }) {
       <div className="form-group">
         <label>Testing Mode</label>
         <input type="text" name="testing_mode" value={formData.testing_mode}
-          onChange={handleChange} placeholder="e.g., Black-box, White-box, Grey-box" />
+          onChange={handleChange} placeholder="e.g., Black Box, White Box, Grey Box" />
       </div>
 
       <div className="form-row">
         <div className="form-group">
-          <label>Testing Start Date</label>
+          <label>Start Date</label>
           <input type="date" name="testing_start_date" value={formData.testing_start_date}
             onChange={handleChange} />
         </div>
-
         <div className="form-group">
-          <label>Testing End Date</label>
+          <label>End Date</label>
           <input type="date" name="testing_end_date" value={formData.testing_end_date}
             onChange={handleChange} />
         </div>
-
         <div className="form-group">
-          <label>Testing Duration</label>
+          <label>Duration</label>
           <input type="text" name="testing_duration" value={formData.testing_duration}
-            onChange={handleChange} placeholder="e.g., 10 days, 2 weeks" />
+            onChange={handleChange} placeholder="e.g., 5 days" />
         </div>
       </div>
 
       <div className="form-group">
         <label>Executive Summary</label>
         <textarea name="executive_summary" value={formData.executive_summary}
-          onChange={handleChange} rows="5"
-          placeholder="High-level summary of the engagement, scope, and key findings…" />
+          onChange={handleChange} rows="6"
+          placeholder="High-level overview of the assessment, key findings, and recommendations..." />
       </div>
 
-      <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Review & Approval</h3>
-
+      <h3 style={{ marginTop: '2rem' }}>Revisioner</h3>
       <div className="form-row">
         <div className="form-group">
           <label>Revisioner Name</label>
           <input type="text" name="revisioner_name" value={formData.revisioner_name}
-            onChange={handleChange} placeholder="e.g., Jane Doe" />
+            onChange={handleChange} placeholder="e.g., John Doe" />
         </div>
-
         <div className="form-group">
           <label>Revisioner Role</label>
           <input type="text" name="revisioner_role" value={formData.revisioner_role}
-            onChange={handleChange} placeholder="e.g., Lead Security Analyst" />
+            onChange={handleChange} placeholder="e.g., Senior Security Analyst" />
         </div>
-
         <div className="form-group">
           <label>Revisioner Date</label>
           <input type="date" name="revisioner_date" value={formData.revisioner_date}
@@ -261,13 +256,13 @@ export function StaticFieldsSection({ formData, handleChange }) {
         </div>
       </div>
 
+      <h3 style={{ marginTop: '2rem' }}>Approver</h3>
       <div className="form-row">
         <div className="form-group">
           <label>Approver Name</label>
           <input type="text" name="approver_name" value={formData.approver_name}
-            onChange={handleChange} placeholder="e.g., John Smith" />
+            onChange={handleChange} placeholder="e.g., Jane Smith" />
         </div>
-
         <div className="form-group">
           <label>Approver Date</label>
           <input type="date" name="approver_date" value={formData.approver_date}
@@ -310,14 +305,9 @@ export function TargetsSection({ formData, addTarget, removeTarget, handleTarget
             </div>
             <div className="form-group">
               <label>Severity</label>
-              <select value={target.severity} onChange={(e) => handleTargetChange(index, 'severity', e.target.value)}>
-                <option value="">Select severity</option>
-                <option value="Critical">Critical</option>
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
-                <option value="Informational">Informational</option>
-              </select>
+              <input type="text" value={target.severity}
+                onChange={(e) => handleTargetChange(index, 'severity', e.target.value)}
+                placeholder="e.g., Critica, Alta, Media, Bassa" />
             </div>
           </div>
         </div>
@@ -411,7 +401,8 @@ export function VulnerabilitiesSection({
   addVulnerability, removeVulnerability, handleVulnChange,
   addVulnArrayItem, removeVulnArrayItem,
   handleEndpointChange, handleAttackChange,
-  handleImageUpload, removeAttack
+  handleImageUpload, removeAttack,
+  reportId
 }) {
   const handlers = { 
     addVulnArrayItem, removeVulnArrayItem,
@@ -447,13 +438,9 @@ export function VulnerabilitiesSection({
           <div className="form-row">
             <div className="form-group">
               <label>Severity</label>
-              <select value={vuln.severity} onChange={(e) => handleVulnChange(vi, 'severity', e.target.value)}>
-                <option value="Critical">Critical</option>
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
-                <option value="Informational">Informational</option>
-              </select>
+              <input type="text" value={vuln.severity}
+                onChange={(e) => handleVulnChange(vi, 'severity', e.target.value)}
+                placeholder="e.g., Critica, Alta, Media, Bassa, Informativa" />
             </div>
             <div className="form-group">
               <label>Priority</label>
@@ -507,7 +494,7 @@ export function VulnerabilitiesSection({
           <EndpointsSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
           
           {/* Attacks section (text and images) */}
-          <AttacksSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
+          <AttacksSection vulnIndex={vi} vuln={vuln} handlers={handlers} reportId={reportId} />
         </div>
       ))}
     </section>

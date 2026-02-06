@@ -207,13 +207,17 @@ export default function useReportForm() {
   }, []);
 
   // File upload handler for images - now adds to attacks array as type 'image'
-  const handleImageUpload = useCallback(async (vulnIndex, files) => {
+  const handleImageUpload = useCallback(async (vulnIndex, files, reportId = 'temp') => {
     if (!files || files.length === 0) return;
 
     const formDataUpload = new FormData();
     Array.from(files).forEach(file => {
       formDataUpload.append('images', file);
     });
+    
+    // Add reportId and vulnIndex as form data
+    formDataUpload.append('reportId', reportId);
+    formDataUpload.append('vulnIndex', vulnIndex.toString());
 
     try {
       const res = await axios.post('/api/reports/upload-images', formDataUpload, {

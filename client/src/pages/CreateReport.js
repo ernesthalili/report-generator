@@ -65,6 +65,7 @@ export default function CreateReport() {
           addVulnArrayItem={addVulnArrayItem} removeVulnArrayItem={removeVulnArrayItem}
           handleEndpointChange={handleEndpointChange} handleAttackChange={handleAttackChange}
           handleImageUpload={handleImageUpload} removeAttack={removeAttack}
+          reportId="temp"
         />
 
         <div className="form-actions">

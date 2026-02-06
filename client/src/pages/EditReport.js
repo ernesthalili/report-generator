@@ -100,6 +100,7 @@ export default function EditReport() {
           addVulnArrayItem={addVulnArrayItem} removeVulnArrayItem={removeVulnArrayItem}
           handleEndpointChange={handleEndpointChange} handleAttackChange={handleAttackChange}
           handleImageUpload={handleImageUpload} removeAttack={removeAttack}
+          reportId={id}
         />
 
         <div className="form-actions">
