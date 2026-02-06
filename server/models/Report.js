@@ -45,6 +45,12 @@ const vulnerabilitySchema = new mongoose.Schema({
   description:   { type: String },
   impact:        { type: String },
   remediation:   { type: String },
+  
+  // OWASP Top 10 classification
+  owasp_category: { type: String },  // e.g., "A01 - Broken Access Control"
+  
+  // Internal notes (not exported to report)
+  internal_notes: { type: String },
 
   // New structure: endpoints instead of separate urls/parameters/methodologies
   endpoints:     [endpointSchema],

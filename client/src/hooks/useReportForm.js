@@ -12,13 +12,15 @@ export const EMPTY_ATTACK       = () => ({ type: 'text', text: '', image: '', ca
 
 export const EMPTY_VULNERABILITY = () => ({
   name: '',
-  severity: 'Medium',
+  severity: '',  // Changed from 'Medium' to allow user to enter Italian values
   priority: '',
   cvss_score: '',
   cvss_vector: '',
   description: '',
   impact: '',
   remediation: '',
+  owasp_category: '',      // New: OWASP Top 10 classification
+  internal_notes: '',      // New: Internal notes (not exported)
   endpoints: [EMPTY_ENDPOINT()],  // New structured endpoints
   attacks:   [EMPTY_ATTACK()]     // New structured attacks (text or image)
 });
@@ -302,6 +304,8 @@ export default function useReportForm() {
         ...v,
         cvss_score:  v.cvss_score || v.cvssScore || '',  // backward compat
         cvss_vector: v.cvss_vector || v.cvssVector || '',
+        owasp_category: v.owasp_category || '',  // new field
+        internal_notes: v.internal_notes || '',  // new field
         endpoints:   ensureEndpoints(v.endpoints),
         attacks:     ensureAttacks(v.attacks)
       }))
@@ -339,6 +343,94 @@ export default function useReportForm() {
     }
   };
 
+  // =========================================================================
+  // Template Management
+  // =========================================================================
+  const saveAsTemplate = useCallback(async (vulnIndex) => {
+    const vuln = formData.vulnerabilities[vulnIndex];
+    
+    // Prompt for template name
+    const templateName = prompt('Enter a name for this template:', vuln.name || 'Untitled Template');
+    if (!templateName) return; // User cancelled
+    
+    // Prepare template data (exclude endpoints and attacks)
+    const templateData = {
+      name: templateName.trim(),
+      severity: vuln.severity || '',
+      priority: vuln.priority || '',
+      cvss_score: vuln.cvss_score || '',
+      cvss_vector: vuln.cvss_vector || '',
+      description: vuln.description || '',
+      impact: vuln.impact || '',
+      remediation: vuln.remediation || '',
+      owasp_category: vuln.owasp_category || ''
+    };
+    
+    try {
+      const res = await axios.post('/api/vulnerability-templates', templateData);
+      if (res.data.success) {
+        alert(`Template "${templateName}" saved successfully!`);
+      }
+    } catch (err) {
+      console.error('Save template error:', err);
+      alert(err.response?.data?.message || 'Failed to save template. The name might already exist.');
+    }
+  }, [formData.vulnerabilities]);
+
+  const loadTemplate = useCallback(async (vulnIndex) => {
+    try {
+      // Fetch all templates
+      const res = await axios.get('/api/vulnerability-templates');
+      
+      if (!res.data.success || res.data.data.length === 0) {
+        alert('No templates available. Save a vulnerability as a template first.');
+        return;
+      }
+      
+      // Create selection list
+      const templates = res.data.data;
+      const templateList = templates.map((t, idx) => `${idx + 1}. ${t.name}`).join('\n');
+      const selection = prompt(
+        `Select a template (enter number):\n\n${templateList}`,
+        '1'
+      );
+      
+      if (!selection) return; // User cancelled
+      
+      const selectedIndex = parseInt(selection) - 1;
+      if (selectedIndex < 0 || selectedIndex >= templates.length) {
+        alert('Invalid selection');
+        return;
+      }
+      
+      const template = templates[selectedIndex];
+      
+      // Load template data into vulnerability (preserve endpoints and attacks)
+      setFormData(prev => {
+        const vulnerabilities = [...prev.vulnerabilities];
+        vulnerabilities[vulnIndex] = {
+          ...vulnerabilities[vulnIndex],
+          name: template.name || vulnerabilities[vulnIndex].name,
+          severity: template.severity || '',
+          priority: template.priority || '',
+          cvss_score: template.cvss_score || '',
+          cvss_vector: template.cvss_vector || '',
+          description: template.description || '',
+          impact: template.impact || '',
+          remediation: template.remediation || '',
+          owasp_category: template.owasp_category || ''
+          // Keep existing endpoints and attacks
+        };
+        return { ...prev, vulnerabilities };
+      });
+      
+      alert(`Template "${template.name}" loaded successfully!`);
+    } catch (err) {
+      console.error('Load template error:', err);
+      alert('Failed to load templates');
+    }
+  }, []);
+
   return {
     formData, loading, error,
     handleChange,
@@ -349,6 +441,7 @@ export default function useReportForm() {
     addVulnArrayItem, removeVulnArrayItem,
     handleEndpointChange, handleAttackChange,
     handleImageUpload, removeAttack,
+    saveAsTemplate, loadTemplate,
     seedForm, create, update
   };
 }

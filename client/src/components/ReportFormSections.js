@@ -209,46 +209,51 @@ export function StaticFieldsSection({ formData, handleChange }) {
       <div className="form-group">
         <label>Testing Mode</label>
         <input type="text" name="testing_mode" value={formData.testing_mode}
-          onChange={handleChange} placeholder="e.g., Black Box, White Box, Grey Box" />
+          onChange={handleChange} placeholder="e.g., Black-box, White-box, Grey-box" />
       </div>
 
       <div className="form-row">
         <div className="form-group">
-          <label>Start Date</label>
+          <label>Testing Start Date</label>
           <input type="date" name="testing_start_date" value={formData.testing_start_date}
             onChange={handleChange} />
         </div>
+
         <div className="form-group">
-          <label>End Date</label>
+          <label>Testing End Date</label>
           <input type="date" name="testing_end_date" value={formData.testing_end_date}
             onChange={handleChange} />
         </div>
+
         <div className="form-group">
-          <label>Duration</label>
+          <label>Testing Duration</label>
           <input type="text" name="testing_duration" value={formData.testing_duration}
-            onChange={handleChange} placeholder="e.g., 5 days" />
+            onChange={handleChange} placeholder="e.g., 10 days, 2 weeks" />
         </div>
       </div>
 
       <div className="form-group">
         <label>Executive Summary</label>
         <textarea name="executive_summary" value={formData.executive_summary}
-          onChange={handleChange} rows="6"
-          placeholder="High-level overview of the assessment, key findings, and recommendations..." />
+          onChange={handleChange} rows="5"
+          placeholder="High-level summary of the engagement, scope, and key findings…" />
       </div>
 
-      <h3 style={{ marginTop: '2rem' }}>Revisioner</h3>
+      <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Review & Approval</h3>
+
       <div className="form-row">
         <div className="form-group">
           <label>Revisioner Name</label>
           <input type="text" name="revisioner_name" value={formData.revisioner_name}
-            onChange={handleChange} placeholder="e.g., John Doe" />
+            onChange={handleChange} placeholder="e.g., Jane Doe" />
         </div>
+
         <div className="form-group">
           <label>Revisioner Role</label>
           <input type="text" name="revisioner_role" value={formData.revisioner_role}
-            onChange={handleChange} placeholder="e.g., Senior Security Analyst" />
+            onChange={handleChange} placeholder="e.g., Lead Security Analyst" />
         </div>
+
         <div className="form-group">
           <label>Revisioner Date</label>
           <input type="date" name="revisioner_date" value={formData.revisioner_date}
@@ -256,13 +261,13 @@ export function StaticFieldsSection({ formData, handleChange }) {
         </div>
       </div>
 
-      <h3 style={{ marginTop: '2rem' }}>Approver</h3>
       <div className="form-row">
         <div className="form-group">
           <label>Approver Name</label>
           <input type="text" name="approver_name" value={formData.approver_name}
-            onChange={handleChange} placeholder="e.g., Jane Smith" />
+            onChange={handleChange} placeholder="e.g., John Smith" />
         </div>
+
         <div className="form-group">
           <label>Approver Date</label>
           <input type="date" name="approver_date" value={formData.approver_date}
@@ -402,7 +407,9 @@ export function VulnerabilitiesSection({
   addVulnArrayItem, removeVulnArrayItem,
   handleEndpointChange, handleAttackChange,
   handleImageUpload, removeAttack,
-  reportId
+  reportId,
+  handleSaveAsTemplate,
+  handleLoadTemplate
 }) {
   const handlers = { 
     addVulnArrayItem, removeVulnArrayItem,
@@ -421,9 +428,27 @@ export function VulnerabilitiesSection({
         <div key={vi} className="vulnerability-section">
           <div className="array-header">
             <h3>Vulnerability {vi + 1}</h3>
-            {formData.vulnerabilities.length > 1 && (
-              <button type="button" onClick={() => removeVulnerability(vi)} className="btn btn-sm btn-danger">Remove</button>
-            )}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                type="button" 
+                onClick={() => handleSaveAsTemplate && handleSaveAsTemplate(vi)} 
+                className="btn btn-sm btn-success"
+                title="Save as template"
+              >
+                💾 Save as Template
+              </button>
+              <button 
+                type="button" 
+                onClick={() => handleLoadTemplate && handleLoadTemplate(vi)} 
+                className="btn btn-sm btn-info"
+                title="Load from template"
+              >
+                📋 Load Template
+              </button>
+              {formData.vulnerabilities.length > 1 && (
+                <button type="button" onClick={() => removeVulnerability(vi)} className="btn btn-sm btn-danger">Remove</button>
+              )}
+            </div>
           </div>
 
           {/* name */}
@@ -448,6 +473,35 @@ export function VulnerabilitiesSection({
                 onChange={(e) => handleVulnChange(vi, 'priority', e.target.value)}
                 placeholder="e.g., P1" />
             </div>
+          </div>
+
+          {/* OWASP Category */}
+          <div className="form-group">
+            <label>OWASP Top 10 Category</label>
+            <select value={vuln.owasp_category || ''} 
+              onChange={(e) => handleVulnChange(vi, 'owasp_category', e.target.value)}>
+              <option value="">Select OWASP category</option>
+              <option value="A01 - Broken Access Control">A01 - Broken Access Control</option>
+              <option value="A02 - Cryptographic Failures">A02 - Cryptographic Failures</option>
+              <option value="A03 - Injection">A03 - Injection</option>
+              <option value="A04 - Insecure Design">A04 - Insecure Design</option>
+              <option value="A05 - Security Misconfiguration">A05 - Security Misconfiguration</option>
+              <option value="A06 - Vulnerable and Outdated Components">A06 - Vulnerable and Outdated Components</option>
+              <option value="A07 - Identification and Authentication Failures">A07 - Identification and Authentication Failures</option>
+              <option value="A08 - Software and Data Integrity Failures">A08 - Software and Data Integrity Failures</option>
+              <option value="A09 - Security Logging and Monitoring Failures">A09 - Security Logging and Monitoring Failures</option>
+              <option value="A10 - Server-Side Request Forgery">A10 - Server-Side Request Forgery</option>
+              <option value="Other">Other (Custom Category)</option>
+            </select>
+            {vuln.owasp_category === 'Other' && (
+              <input 
+                type="text" 
+                value={vuln.owasp_custom || ''}
+                onChange={(e) => handleVulnChange(vi, 'owasp_custom', e.target.value)}
+                placeholder="Enter custom category"
+                style={{ marginTop: '8px' }}
+              />
+            )}
           </div>
 
           {/* CVSS */}
@@ -488,6 +542,15 @@ export function VulnerabilitiesSection({
             <textarea value={vuln.remediation} rows="4"
               onChange={(e) => handleVulnChange(vi, 'remediation', e.target.value)}
               placeholder="How to fix this vulnerability…" />
+          </div>
+
+          {/* Internal Notes - not exported */}
+          <div className="form-group">
+            <label>Internal Notes <span style={{ fontSize: '0.85em', color: '#666' }}>(Not included in final report)</span></label>
+            <textarea value={vuln.internal_notes || ''} rows="3"
+              onChange={(e) => handleVulnChange(vi, 'internal_notes', e.target.value)}
+              placeholder="Personal notes, testing details, or any information for internal use only…"
+              style={{ borderColor: '#ffa500', backgroundColor: '#fffbf0' }} />
           </div>
 
           {/* Endpoints section */}

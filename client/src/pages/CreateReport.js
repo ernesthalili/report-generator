@@ -12,6 +12,8 @@ import './ReportForm.css';
 
 export default function CreateReport() {
   const navigate = useNavigate();
+  // Generate a unique temp ID for this new report
+  const [tempReportId] = React.useState(`temp-${Date.now()}`);
 
   const {
     formData, loading, error,
@@ -23,6 +25,7 @@ export default function CreateReport() {
     addVulnArrayItem, removeVulnArrayItem,
     handleEndpointChange, handleAttackChange,
     handleImageUpload, removeAttack,
+    saveAsTemplate, loadTemplate,
     create
   } = useReportForm();
 
@@ -65,7 +68,9 @@ export default function CreateReport() {
           addVulnArrayItem={addVulnArrayItem} removeVulnArrayItem={removeVulnArrayItem}
           handleEndpointChange={handleEndpointChange} handleAttackChange={handleAttackChange}
           handleImageUpload={handleImageUpload} removeAttack={removeAttack}
-          reportId="temp"
+          reportId={tempReportId}
+          handleSaveAsTemplate={saveAsTemplate}
+          handleLoadTemplate={loadTemplate}
         />
 
         <div className="form-actions">

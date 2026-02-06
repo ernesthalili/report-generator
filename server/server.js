@@ -41,6 +41,7 @@ app.use('/uploads', express.static(uploadsDir));
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/vulnerability-templates', require('./routes/vulnerability-templates'));
 
 // Health check route
 app.get('/api/health', (req, res) => {
