@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 
 // ---------------------------------------------------------------------------
@@ -52,6 +52,53 @@ export default function useReportForm() {
   const [formData, setFormData]   = useState(BLANK_FORM);
   const [loading,  setLoading]    = useState(false);
   const [error,    setError]      = useState('');
+
+  // =========================================================================
+  // Auto-save to localStorage every 30 seconds
+  // =========================================================================
+  useEffect(() => {
+    const timer = setInterval(() => {
+      // Only save if there's meaningful data
+      if (formData.projectName || formData.vulnerabilities.some(v => v.name)) {
+        localStorage.setItem('pentest-draft', JSON.stringify({
+          formData,
+          timestamp: Date.now()
+        }));
+        console.log('Draft auto-saved at', new Date().toLocaleTimeString());
+      }
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(timer);
+  }, [formData]);
+
+  // Load draft on mount
+  useEffect(() => {
+    const draft = localStorage.getItem('pentest-draft');
+    if (draft) {
+      try {
+        const { formData: savedData, timestamp } = JSON.parse(draft);
+        const hoursSince = (Date.now() - timestamp) / (1000 * 60 * 60);
+        
+        if (hoursSince < 24) { // Only restore if less than 24 hours old
+          const shouldRestore = window.confirm(
+            `Found unsaved draft from ${new Date(timestamp).toLocaleString()}. Restore it?`
+          );
+          if (shouldRestore) {
+            setFormData(savedData);
+          } else {
+            // User declined, clear the draft
+            localStorage.removeItem('pentest-draft');
+          }
+        } else {
+          // Draft too old, remove it
+          localStorage.removeItem('pentest-draft');
+        }
+      } catch (err) {
+        console.error('Failed to restore draft:', err);
+        localStorage.removeItem('pentest-draft');
+      }
+    }
+  }, []);
 
   // --- generic top-level field change ---
   const handleChange = useCallback((e) => {
@@ -140,6 +187,24 @@ export default function useReportForm() {
       ...prev,
       vulnerabilities: prev.vulnerabilities.filter((_, i) => i !== index)
     }));
+  }, []);
+
+  const duplicateVulnerability = useCallback((index) => {
+    setFormData(prev => {
+      const vulnToCopy = prev.vulnerabilities[index];
+      const duplicated = {
+        ...vulnToCopy,
+        name: vulnToCopy.name + ' (Copy)',
+        // Deep copy arrays to avoid reference issues
+        endpoints: vulnToCopy.endpoints.map(e => ({...e})),
+        attacks: vulnToCopy.attacks.map(a => ({...a}))
+      };
+      
+      const newVulns = [...prev.vulnerabilities];
+      newVulns.splice(index + 1, 0, duplicated); // Insert after current
+      
+      return { ...prev, vulnerabilities: newVulns };
+    });
   }, []);
 
   const handleVulnChange = useCallback((index, field, value) => {
@@ -320,6 +385,8 @@ export default function useReportForm() {
     setLoading(true);
     try {
       await axios.post('/api/reports', formData);
+      // Clear draft after successful submission
+      localStorage.removeItem('pentest-draft');
       return true;
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create report');
@@ -334,6 +401,8 @@ export default function useReportForm() {
     setLoading(true);
     try {
       await axios.put(`/api/reports/${id}`, formData);
+      // Clear draft after successful update
+      localStorage.removeItem('pentest-draft');
       return true;
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update report');
@@ -437,7 +506,7 @@ export default function useReportForm() {
     addTarget, removeTarget, handleTargetChange,
     addCredential, removeCredential, handleCredentialChange,
     addTester, removeTester, handleTesterChange,
-    addVulnerability, removeVulnerability, handleVulnChange,
+    addVulnerability, removeVulnerability, duplicateVulnerability, handleVulnChange,
     addVulnArrayItem, removeVulnArrayItem,
     handleEndpointChange, handleAttackChange,
     handleImageUpload, removeAttack,

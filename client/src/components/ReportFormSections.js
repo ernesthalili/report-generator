@@ -403,7 +403,7 @@ export function TestersSection({ formData, addTester, removeTester, handleTester
 /** Dynamic: Vulnerabilities list */
 export function VulnerabilitiesSection({
   formData,
-  addVulnerability, removeVulnerability, handleVulnChange,
+  addVulnerability, removeVulnerability, duplicateVulnerability, handleVulnChange,
   addVulnArrayItem, removeVulnArrayItem,
   handleEndpointChange, handleAttackChange,
   handleImageUpload, removeAttack,
@@ -444,6 +444,14 @@ export function VulnerabilitiesSection({
                 title="Load from template"
               >
                 📋 Load Template
+              </button>
+              <button 
+                type="button" 
+                onClick={() => duplicateVulnerability && duplicateVulnerability(vi)} 
+                className="btn btn-sm btn-secondary"
+                title="Duplicate this vulnerability"
+              >
+                📋 Duplicate
               </button>
               {formData.vulnerabilities.length > 1 && (
                 <button type="button" onClick={() => removeVulnerability(vi)} className="btn btn-sm btn-danger">Remove</button>

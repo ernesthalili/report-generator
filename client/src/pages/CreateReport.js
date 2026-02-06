@@ -21,7 +21,7 @@ export default function CreateReport() {
     addTarget, removeTarget, handleTargetChange,
     addCredential, removeCredential, handleCredentialChange,
     addTester, removeTester, handleTesterChange,
-    addVulnerability, removeVulnerability, handleVulnChange,
+    addVulnerability, removeVulnerability, duplicateVulnerability, handleVulnChange,
     addVulnArrayItem, removeVulnArrayItem,
     handleEndpointChange, handleAttackChange,
     handleImageUpload, removeAttack,
@@ -64,10 +64,16 @@ export default function CreateReport() {
 
         <VulnerabilitiesSection
           formData={formData}
-          addVulnerability={addVulnerability} removeVulnerability={removeVulnerability} handleVulnChange={handleVulnChange}
-          addVulnArrayItem={addVulnArrayItem} removeVulnArrayItem={removeVulnArrayItem}
-          handleEndpointChange={handleEndpointChange} handleAttackChange={handleAttackChange}
-          handleImageUpload={handleImageUpload} removeAttack={removeAttack}
+          addVulnerability={addVulnerability} 
+          removeVulnerability={removeVulnerability}
+          duplicateVulnerability={duplicateVulnerability}
+          handleVulnChange={handleVulnChange}
+          addVulnArrayItem={addVulnArrayItem} 
+          removeVulnArrayItem={removeVulnArrayItem}
+          handleEndpointChange={handleEndpointChange} 
+          handleAttackChange={handleAttackChange}
+          handleImageUpload={handleImageUpload} 
+          removeAttack={removeAttack}
           reportId={tempReportId}
           handleSaveAsTemplate={saveAsTemplate}
           handleLoadTemplate={loadTemplate}
