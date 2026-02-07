@@ -500,6 +500,23 @@ export default function useReportForm() {
     }
   }, []);
 
+  const moveVulnerability = useCallback((index, direction) => {
+    setFormData(prev => {
+      const vulnerabilities = [...prev.vulnerabilities];
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      
+      if (newIndex < 0 || newIndex >= vulnerabilities.length) {
+        return prev; // Out of bounds
+      }
+      
+      // Swap vulnerabilities
+      [vulnerabilities[index], vulnerabilities[newIndex]] = 
+        [vulnerabilities[newIndex], vulnerabilities[index]];
+      
+      return { ...prev, vulnerabilities };
+    });
+  }, []);
+
   return {
     formData, loading, error,
     handleChange,
@@ -511,6 +528,7 @@ export default function useReportForm() {
     handleEndpointChange, handleAttackChange,
     handleImageUpload, removeAttack,
     saveAsTemplate, loadTemplate,
+    moveVulnerability,
     seedForm, create, update
   };
 }

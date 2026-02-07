@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import TemplateManager from '../components/TemplateManager';
 import './Dashboard.css';
 
 function Dashboard() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
   
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -76,12 +78,21 @@ function Dashboard() {
       <div className="dashboard-content">
         <div className="content-header">
           <h2>My Reports</h2>
-          <button 
-            onClick={() => navigate('/reports/create')} 
-            className="btn btn-primary"
-          >
-            + Create New Report
-          </button>
+          <div className="header-buttons">
+            <button 
+              onClick={() => setShowTemplateManager(true)} 
+              className="btn btn-secondary"
+              style={{ marginRight: '10px' }}
+            >
+              📋 Manage Templates
+            </button>
+            <button 
+              onClick={() => navigate('/reports/create')} 
+              className="btn btn-primary"
+            >
+              + Create New Report
+            </button>
+          </div>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
@@ -145,6 +156,10 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      {showTemplateManager && (
+        <TemplateManager onClose={() => setShowTemplateManager(false)} />
+      )}
     </div>
   );
 }

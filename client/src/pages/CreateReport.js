@@ -26,6 +26,7 @@ export default function CreateReport() {
     handleEndpointChange, handleAttackChange,
     handleImageUpload, removeAttack,
     saveAsTemplate, loadTemplate,
+    moveVulnerability,
     create
   } = useReportForm();
 
@@ -77,6 +78,7 @@ export default function CreateReport() {
           reportId={tempReportId}
           handleSaveAsTemplate={saveAsTemplate}
           handleLoadTemplate={loadTemplate}
+          moveVulnerability={moveVulnerability}
         />
 
         <div className="form-actions">

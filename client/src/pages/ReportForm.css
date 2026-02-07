@@ -139,6 +139,62 @@
   margin-bottom: 1.5rem;
 }
 
+/* Collapsible vulnerability header */
+.vuln-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.btn-collapse {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: #667eea;
+  transition: transform 0.2s ease;
+}
+
+.btn-collapse:hover {
+  transform: scale(1.1);
+}
+
+.severity-badge {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.severity-critica {
+  background: #721c24;
+  color: white;
+}
+
+.severity-alta {
+  background: #dc3545;
+  color: white;
+}
+
+.severity-media {
+  background: #fd7e14;
+  color: white;
+}
+
+.severity-bassa {
+  background: #ffc107;
+  color: #212529;
+}
+
+.severity-informativa {
+  background: #17a2b8;
+  color: white;
+}
+
 .form-actions {
   display: flex;
   gap: 1rem;

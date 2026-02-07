@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import CVSSCalculator from './CVSSCalculator';
 
 // ---------------------------------------------------------------------------
 // Small reusable primitives
@@ -409,8 +410,26 @@ export function VulnerabilitiesSection({
   handleImageUpload, removeAttack,
   reportId,
   handleSaveAsTemplate,
-  handleLoadTemplate
+  handleLoadTemplate,
+  moveVulnerability
 }) {
+  const [collapsedVulns, setCollapsedVulns] = useState({});
+
+  const toggleCollapse = (index) => {
+    setCollapsedVulns(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
+
+  const handleCVSSUpdate = (vulnIndex, { score, severity, vector }) => {
+    // Update all three fields together
+    // We need to batch these updates to avoid conflicts
+    handleVulnChange(vulnIndex, 'cvss_score', score);
+    handleVulnChange(vulnIndex, 'severity', severity);
+    handleVulnChange(vulnIndex, 'cvss_vector', vector);
+  };
+
   const handlers = { 
     addVulnArrayItem, removeVulnArrayItem,
     handleEndpointChange, handleAttackChange,
@@ -427,8 +446,43 @@ export function VulnerabilitiesSection({
       {formData.vulnerabilities.map((vuln, vi) => (
         <div key={vi} className="vulnerability-section">
           <div className="array-header">
-            <h3>Vulnerability {vi + 1}</h3>
+            <div className="vuln-header-left">
+              <button
+                type="button"
+                onClick={() => toggleCollapse(vi)}
+                className="btn-collapse"
+                title={collapsedVulns[vi] ? "Expand" : "Collapse"}
+              >
+                {collapsedVulns[vi] ? '▶' : '▼'}
+              </button>
+              <h3>Vulnerability {vi + 1}: {vuln.name || 'Untitled'}</h3>
+              {vuln.severity && (
+                <span className={`severity-badge severity-${vuln.severity.toLowerCase()}`}>
+                  {vuln.severity}
+                </span>
+              )}
+            </div>
             <div style={{ display: 'flex', gap: '8px' }}>
+              {vi > 0 && (
+                <button
+                  type="button"
+                  onClick={() => moveVulnerability && moveVulnerability(vi, 'up')}
+                  className="btn btn-sm btn-secondary"
+                  title="Move up"
+                >
+                  ▲
+                </button>
+              )}
+              {vi < formData.vulnerabilities.length - 1 && (
+                <button
+                  type="button"
+                  onClick={() => moveVulnerability && moveVulnerability(vi, 'down')}
+                  className="btn btn-sm btn-secondary"
+                  title="Move down"
+                >
+                  ▼
+                </button>
+              )}
               <button 
                 type="button" 
                 onClick={() => handleSaveAsTemplate && handleSaveAsTemplate(vi)} 
@@ -459,113 +513,124 @@ export function VulnerabilitiesSection({
             </div>
           </div>
 
-          {/* name */}
-          <div className="form-group">
-            <label>Vulnerability Name *</label>
-            <input type="text" value={vuln.name} required
-              onChange={(e) => handleVulnChange(vi, 'name', e.target.value)}
-              placeholder="e.g., SQL Injection in Login Form" />
-          </div>
+          {!collapsedVulns[vi] && (
+            <>
+              {/* name */}
+              <div className="form-group">
+                <label>Vulnerability Name *</label>
+                <input type="text" value={vuln.name} required
+                  onChange={(e) => handleVulnChange(vi, 'name', e.target.value)}
+                  placeholder="e.g., SQL Injection in Login Form" />
+              </div>
 
-          {/* severity + priority */}
-          <div className="form-row">
-            <div className="form-group">
-              <label>Severity</label>
-              <input type="text" value={vuln.severity}
-                onChange={(e) => handleVulnChange(vi, 'severity', e.target.value)}
-                placeholder="e.g., Critica, Alta, Media, Bassa, Informativa" />
-            </div>
-            <div className="form-group">
-              <label>Priority</label>
-              <input type="text" value={vuln.priority}
-                onChange={(e) => handleVulnChange(vi, 'priority', e.target.value)}
-                placeholder="e.g., P1" />
-            </div>
-          </div>
-
-          {/* OWASP Category */}
-          <div className="form-group">
-            <label>OWASP Top 10 Category</label>
-            <select value={vuln.owasp_category || ''} 
-              onChange={(e) => handleVulnChange(vi, 'owasp_category', e.target.value)}>
-              <option value="">Select OWASP category</option>
-              <option value="A01 - Broken Access Control">A01 - Broken Access Control</option>
-              <option value="A02 - Cryptographic Failures">A02 - Cryptographic Failures</option>
-              <option value="A03 - Injection">A03 - Injection</option>
-              <option value="A04 - Insecure Design">A04 - Insecure Design</option>
-              <option value="A05 - Security Misconfiguration">A05 - Security Misconfiguration</option>
-              <option value="A06 - Vulnerable and Outdated Components">A06 - Vulnerable and Outdated Components</option>
-              <option value="A07 - Identification and Authentication Failures">A07 - Identification and Authentication Failures</option>
-              <option value="A08 - Software and Data Integrity Failures">A08 - Software and Data Integrity Failures</option>
-              <option value="A09 - Security Logging and Monitoring Failures">A09 - Security Logging and Monitoring Failures</option>
-              <option value="A10 - Server-Side Request Forgery">A10 - Server-Side Request Forgery</option>
-              <option value="Other">Other (Custom Category)</option>
-            </select>
-            {vuln.owasp_category === 'Other' && (
-              <input 
-                type="text" 
-                value={vuln.owasp_custom || ''}
-                onChange={(e) => handleVulnChange(vi, 'owasp_custom', e.target.value)}
-                placeholder="Enter custom category"
-                style={{ marginTop: '8px' }}
+              {/* CVSS Calculator */}
+              <CVSSCalculator
+                initialVector={vuln.cvss_vector}
+                initialScore={vuln.cvss_score}
+                onScoreUpdate={(data) => handleCVSSUpdate(vi, data)}
               />
-            )}
-          </div>
 
-          {/* CVSS */}
-          <div className="form-row">
-            <div className="form-group">
-              <label>CVSS Score</label>
-              <input type="text" value={vuln.cvss_score}
-                onChange={(e) => handleVulnChange(vi, 'cvss_score', e.target.value)}
-                placeholder="e.g., 9.8" />
-            </div>
-            <div className="form-group">
-              <label>CVSS Vector</label>
-              <input type="text" value={vuln.cvss_vector}
-                onChange={(e) => handleVulnChange(vi, 'cvss_vector', e.target.value)}
-                placeholder="CVSS:3.1/AV:N/AC:L/…" />
-            </div>
-          </div>
+              {/* severity + priority */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Severity</label>
+                  <input type="text" value={vuln.severity}
+                    onChange={(e) => handleVulnChange(vi, 'severity', e.target.value)}
+                    placeholder="e.g., Critica, Alta, Media, Bassa, Informativa" />
+                </div>
+                <div className="form-group">
+                  <label>Priority</label>
+                  <input type="text" value={vuln.priority}
+                    onChange={(e) => handleVulnChange(vi, 'priority', e.target.value)}
+                    placeholder="e.g., P1" />
+                </div>
+              </div>
 
-          {/* description */}
-          <div className="form-group">
-            <label>Description</label>
-            <textarea value={vuln.description} rows="4"
-              onChange={(e) => handleVulnChange(vi, 'description', e.target.value)}
-              placeholder="Detailed description of the vulnerability…" />
-          </div>
+              {/* OWASP Category */}
+              <div className="form-group">
+                <label>OWASP Top 10 Category</label>
+                <select value={vuln.owasp_category || ''} 
+                  onChange={(e) => handleVulnChange(vi, 'owasp_category', e.target.value)}>
+                  <option value="">Select OWASP category</option>
+                  <option value="A01 - Broken Access Control">A01 - Broken Access Control</option>
+                  <option value="A02 - Cryptographic Failures">A02 - Cryptographic Failures</option>
+                  <option value="A03 - Injection">A03 - Injection</option>
+                  <option value="A04 - Insecure Design">A04 - Insecure Design</option>
+                  <option value="A05 - Security Misconfiguration">A05 - Security Misconfiguration</option>
+                  <option value="A06 - Vulnerable and Outdated Components">A06 - Vulnerable and Outdated Components</option>
+                  <option value="A07 - Identification and Authentication Failures">A07 - Identification and Authentication Failures</option>
+                  <option value="A08 - Software and Data Integrity Failures">A08 - Software and Data Integrity Failures</option>
+                  <option value="A09 - Security Logging and Monitoring Failures">A09 - Security Logging and Monitoring Failures</option>
+                  <option value="A10 - Server-Side Request Forgery">A10 - Server-Side Request Forgery</option>
+                  <option value="Other">Other (Custom Category)</option>
+                </select>
+                {vuln.owasp_category === 'Other' && (
+                  <input 
+                    type="text" 
+                    value={vuln.owasp_custom || ''}
+                    onChange={(e) => handleVulnChange(vi, 'owasp_custom', e.target.value)}
+                    placeholder="Enter custom category"
+                    style={{ marginTop: '8px' }}
+                  />
+                )}
+              </div>
 
-          {/* impact */}
-          <div className="form-group">
-            <label>Impact</label>
-            <textarea value={vuln.impact} rows="3"
-              onChange={(e) => handleVulnChange(vi, 'impact', e.target.value)}
-              placeholder="What could happen if exploited…" />
-          </div>
+              {/* CVSS */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label>CVSS Score</label>
+                  <input type="text" value={vuln.cvss_score}
+                    onChange={(e) => handleVulnChange(vi, 'cvss_score', e.target.value)}
+                    placeholder="e.g., 9.8" />
+                </div>
+                <div className="form-group">
+                  <label>CVSS Vector</label>
+                  <input type="text" value={vuln.cvss_vector}
+                    onChange={(e) => handleVulnChange(vi, 'cvss_vector', e.target.value)}
+                    placeholder="CVSS:3.1/AV:N/AC:L/…" />
+                </div>
+              </div>
 
-          {/* remediation */}
-          <div className="form-group">
-            <label>Remediation</label>
-            <textarea value={vuln.remediation} rows="4"
-              onChange={(e) => handleVulnChange(vi, 'remediation', e.target.value)}
-              placeholder="How to fix this vulnerability…" />
-          </div>
+              {/* description */}
+              <div className="form-group">
+                <label>Description</label>
+                <textarea value={vuln.description} rows="4"
+                  onChange={(e) => handleVulnChange(vi, 'description', e.target.value)}
+                  placeholder="Detailed description of the vulnerability…" />
+              </div>
 
-          {/* Internal Notes - not exported */}
-          <div className="form-group">
-            <label>Internal Notes <span style={{ fontSize: '0.85em', color: '#666' }}>(Not included in final report)</span></label>
-            <textarea value={vuln.internal_notes || ''} rows="3"
-              onChange={(e) => handleVulnChange(vi, 'internal_notes', e.target.value)}
-              placeholder="Personal notes, testing details, or any information for internal use only…"
-              style={{ borderColor: '#ffa500', backgroundColor: '#fffbf0' }} />
-          </div>
+              {/* impact */}
+              <div className="form-group">
+                <label>Impact</label>
+                <textarea value={vuln.impact} rows="3"
+                  onChange={(e) => handleVulnChange(vi, 'impact', e.target.value)}
+                  placeholder="What could happen if exploited…" />
+              </div>
 
-          {/* Endpoints section */}
-          <EndpointsSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
-          
-          {/* Attacks section (text and images) */}
-          <AttacksSection vulnIndex={vi} vuln={vuln} handlers={handlers} reportId={reportId} />
+              {/* remediation */}
+              <div className="form-group">
+                <label>Remediation</label>
+                <textarea value={vuln.remediation} rows="4"
+                  onChange={(e) => handleVulnChange(vi, 'remediation', e.target.value)}
+                  placeholder="How to fix this vulnerability…" />
+              </div>
+
+              {/* Internal Notes - not exported */}
+              <div className="form-group">
+                <label>Internal Notes <span style={{ fontSize: '0.85em', color: '#666' }}>(Not included in final report)</span></label>
+                <textarea value={vuln.internal_notes || ''} rows="3"
+                  onChange={(e) => handleVulnChange(vi, 'internal_notes', e.target.value)}
+                  placeholder="Personal notes, testing details, or any information for internal use only…"
+                  style={{ borderColor: '#ffa500', backgroundColor: '#fffbf0' }} />
+              </div>
+
+              {/* Endpoints section */}
+              <EndpointsSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
+              
+              {/* Attacks section (text and images) */}
+              <AttacksSection vulnIndex={vi} vuln={vuln} handlers={handlers} reportId={reportId} />
+            </>
+          )}
         </div>
       ))}
     </section>

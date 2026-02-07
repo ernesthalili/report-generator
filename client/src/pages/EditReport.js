@@ -28,6 +28,7 @@ export default function EditReport() {
     handleEndpointChange, handleAttackChange,
     handleImageUpload, removeAttack,
     saveAsTemplate, loadTemplate,
+    moveVulnerability,
     seedForm, update
   } = useReportForm();
 
@@ -110,6 +111,7 @@ export default function EditReport() {
           reportId={id}
           handleSaveAsTemplate={saveAsTemplate}
           handleLoadTemplate={loadTemplate}
+          moveVulnerability={moveVulnerability}
         />
 
         <div className="form-actions">
