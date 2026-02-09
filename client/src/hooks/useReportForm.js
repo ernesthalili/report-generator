@@ -2,6 +2,13 @@ import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 
 // ---------------------------------------------------------------------------
+// Utility: Generate short unique ID (8 characters)
+// ---------------------------------------------------------------------------
+const generateShortId = () => {
+  return Math.random().toString(36).substring(2, 10);
+};
+
+// ---------------------------------------------------------------------------
 // Default / blank shapes  – single source of truth
 // ---------------------------------------------------------------------------
 export const EMPTY_TARGET       = () => ({ name: '', url: '', severity: '' });
@@ -11,6 +18,7 @@ export const EMPTY_ENDPOINT     = () => ({ index: 1, http_method: '', path: '', 
 export const EMPTY_ATTACK       = () => ({ type: 'text', text: '', image: '', caption: '' });
 
 export const EMPTY_VULNERABILITY = () => ({
+  vulnId: generateShortId(),  // Unique ID for this vulnerability (for file uploads)
   name: '',
   severity: '',  // Changed from 'Medium' to allow user to enter Italian values
   priority: '',
@@ -194,6 +202,7 @@ export default function useReportForm() {
       const vulnToCopy = prev.vulnerabilities[index];
       const duplicated = {
         ...vulnToCopy,
+        vulnId: generateShortId(),  // Generate NEW unique ID for the duplicate
         name: vulnToCopy.name + ' (Copy)',
         // Deep copy arrays to avoid reference issues
         endpoints: vulnToCopy.endpoints.map(e => ({...e})),
@@ -274,20 +283,29 @@ export default function useReportForm() {
   }, []);
 
   // File upload handler for images - now adds to attacks array as type 'image'
-  const handleImageUpload = useCallback(async (vulnIndex, files, reportId = 'temp') => {
+  const handleImageUpload = useCallback(async (vulnIndex, files, reportId) => {
     if (!files || files.length === 0) return;
+    
+    if (!reportId) {
+      alert('Report ID is missing. Cannot upload images.');
+      console.error('handleImageUpload called without reportId');
+      return;
+    }
 
     const formDataUpload = new FormData();
     Array.from(files).forEach(file => {
       formDataUpload.append('images', file);
     });
     
-    // Add reportId and vulnIndex as form data
-    formDataUpload.append('reportId', reportId);
-    formDataUpload.append('vulnIndex', vulnIndex.toString());
+    // Get vulnId from the vulnerability object, fallback to index for backward compatibility
+    const vulnerability = formData.vulnerabilities[vulnIndex];
+    const vulnIdentifier = vulnerability?.vulnId || vulnIndex.toString();
+    
+    // Pass reportId and vulnIdentifier as URL parameters
+    // This ensures they're available during multer's file processing
 
     try {
-      const res = await axios.post('/api/reports/upload-images', formDataUpload, {
+      const res = await axios.post(`/api/reports/${reportId}/upload-images/${vulnIdentifier}`, formDataUpload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -309,9 +327,10 @@ export default function useReportForm() {
       }
     } catch (err) {
       console.error('Image upload error:', err);
-      alert('Failed to upload images');
+      const errorMsg = err.response?.data?.message || 'Failed to upload images. Please check folder permissions and try again.';
+      alert(errorMsg);
     }
-  }, []);
+  }, [formData.vulnerabilities]);
 
   const removeAttack = useCallback((vulnIndex, attackIndex) => {
     setFormData(prev => {
@@ -367,6 +386,7 @@ export default function useReportForm() {
       testers:                 ensure(report.testers,                    EMPTY_TESTER),
       vulnerabilities:         ensure(report.vulnerabilities,            EMPTY_VULNERABILITY).map(v => ({
         ...v,
+        vulnId: v.vulnId || generateShortId(),  // Preserve existing vulnId or generate for old reports
         cvss_score:  v.cvss_score || v.cvssScore || '',  // backward compat
         cvss_vector: v.cvss_vector || v.cvssVector || '',
         owasp_category: v.owasp_category || '',  // new field
@@ -380,11 +400,20 @@ export default function useReportForm() {
   // =========================================================================
   // Submit helpers  (create / update)
   // =========================================================================
-  const create = async () => {
+  const create = async (reportId) => {
     setError('');
     setLoading(true);
+    
+    if (!reportId) {
+      setError('Report ID is missing. Cannot create report.');
+      setLoading(false);
+      return false;
+    }
+    
     try {
-      await axios.post('/api/reports', formData);
+      // Include the reportId in the request so the backend can associate it
+      const dataToSend = { ...formData, reportId };
+      await axios.post('/api/reports', dataToSend);
       // Clear draft after successful submission
       localStorage.removeItem('pentest-draft');
       return true;
@@ -479,6 +508,7 @@ export default function useReportForm() {
         const vulnerabilities = [...prev.vulnerabilities];
         vulnerabilities[vulnIndex] = {
           ...vulnerabilities[vulnIndex],
+          // Preserve vulnId - do NOT overwrite it with template data
           name: template.name || vulnerabilities[vulnIndex].name,
           severity: template.severity || '',
           priority: template.priority || '',
@@ -488,7 +518,7 @@ export default function useReportForm() {
           impact: template.impact || '',
           remediation: template.remediation || '',
           owasp_category: template.owasp_category || ''
-          // Keep existing endpoints and attacks
+          // Keep existing endpoints, attacks, and vulnId
         };
         return { ...prev, vulnerabilities };
       });

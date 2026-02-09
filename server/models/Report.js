@@ -71,6 +71,9 @@ const reportSchema = new mongoose.Schema({
     required: true
   },
 
+  // ---- Custom Report ID (UUID assigned on frontend) ----
+  customReportId:          { type: String, unique: true, sparse: true },  // UUID from frontend
+
   // ---- STATIC fields (appear exactly once per report) ----
   projectName:             { type: String, required: [true, 'Please provide a project name'], trim: true },
   client_name:             { type: String },                // CLIENT (renamed from 'client')

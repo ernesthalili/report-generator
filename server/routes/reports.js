@@ -10,9 +10,22 @@ const path = require('path');
 const multer = require('multer');
 const expressions = require('angular-expressions');
 const ImageModule = require('docxtemplater-image-module-free');
+const CrossReferenceModule = require('../../../docxtemplater-crossref-module');
 
-// Configure angular-expressions for docxtemplater
+// Configure angular-expressions for docxtemplater  
 function angularParser(tag) {
+  // For tags that start with & or $, return a simple getter that returns undefined
+  // This prevents angular-expressions from trying to parse them
+  // The CrossReferenceModule will handle these tags via its own parse() method
+  if (tag.startsWith('&') || tag.startsWith('$')) {
+    return {
+      get: function(scope, context) {
+        // Return undefined - the module will handle this tag
+        return undefined;
+      }
+    };
+  }
+  
   tag = tag
     .replace(/^\.$/, "this")
     .replace(/('|')/g, "'")
@@ -65,16 +78,44 @@ const imageOpts = {
 // ---------------------------------------------------------------------------
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // Extract reportId and vulnIndex from request body or query
-    const reportId = req.body.reportId || req.query.reportId || 'temp';
-    const vulnIndex = req.body.vulnIndex || req.query.vulnIndex || '0';
+    // Extract reportId and vulnIdentifier from URL params (req.params)
+    // vulnIdentifier can be either a vulnId (e.g., "a1b2c3d4") or a numeric index (e.g., "0")
+    // For multipart/form-data, req.body is not available during file processing
+    const reportId = req.params.reportId || req.query.reportId;
+    const vulnIdentifier = req.params.vulnIdentifier || req.query.vulnIdentifier || '0';
     
-    // Create path: /uploads/report-{reportId}/vuln-{vulnIndex}/
-    const uploadsDir = path.join(__dirname, '../../uploads', `report-${reportId}`, `vuln-${vulnIndex}`);
-    
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    // Validate reportId is present
+    if (!reportId) {
+      return cb(new Error('Report ID is required for file upload'), null);
     }
+    
+    // Validate reportId format (UUID or MongoDB ObjectId)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const objectIdRegex = /^[0-9a-f]{24}$/i;
+    
+    if (!uuidRegex.test(reportId) && !objectIdRegex.test(reportId)) {
+      return cb(new Error('Invalid report ID format'), null);
+    }
+    
+    // Create path: /uploads/report-{reportId}/vuln-{vulnIdentifier}/
+    const uploadsDir = path.join(__dirname, '../../uploads', `report-${reportId}`, `vuln-${vulnIdentifier}`);
+    
+    // Check if base report folder exists
+    const reportDir = path.join(__dirname, '../../uploads', `report-${reportId}`);
+    if (!fs.existsSync(reportDir)) {
+      return cb(new Error(`Report folder not found: report-${reportId}. Please ensure the report is initialized.`), null);
+    }
+    
+    // Create vulnerability subfolder if it doesn't exist
+    if (!fs.existsSync(uploadsDir)) {
+      try {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      } catch (err) {
+        console.error('Error creating upload directory:', err);
+        return cb(new Error('Failed to create upload directory. Check server permissions.'), null);
+      }
+    }
+    
     cb(null, uploadsDir);
   },
   filename: function (req, file, cb) {
@@ -94,6 +135,66 @@ const upload = multer({
     } else {
       cb(new Error('Only image files are allowed'), false);
     }
+  }
+});
+
+// @route   POST /api/reports/initialize-folder
+// @desc    Initialize folder structure for a new report
+// @access  Private
+router.post('/initialize-folder', protect, async (req, res) => {
+  try {
+    const { reportId } = req.body;
+    
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Report ID is required'
+      });
+    }
+    
+    // Validate reportId format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(reportId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid report ID format'
+      });
+    }
+    
+    const reportDir = path.join(__dirname, '../../uploads', `report-${reportId}`);
+    
+    // Check if folder already exists
+    if (fs.existsSync(reportDir)) {
+      return res.json({
+        success: true,
+        message: 'Report folder already exists',
+        reportId
+      });
+    }
+    
+    // Create the folder
+    try {
+      fs.mkdirSync(reportDir, { recursive: true });
+      console.log(`Created report folder: report-${reportId}`);
+    } catch (err) {
+      console.error('Error creating report folder:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create report folder. Check server permissions.'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Report folder initialized successfully',
+      reportId
+    });
+  } catch (error) {
+    console.error('Initialize folder error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error initializing report folder'
+    });
   }
 });
 
@@ -140,6 +241,19 @@ router.get('/:id', protect, async (req, res) => {
       });
     }
 
+    // Ensure report folder exists when accessing for editing
+    const reportDir = path.join(__dirname, '../../uploads', `report-${req.params.id}`);
+    if (!fs.existsSync(reportDir)) {
+      console.warn(`Report folder missing for report ${req.params.id}, creating...`);
+      try {
+        fs.mkdirSync(reportDir, { recursive: true });
+      } catch (err) {
+        console.error('Error creating report folder:', err);
+        // Don't fail the request, just log the warning
+        // The folder will be created when images are uploaded
+      }
+    }
+
     res.json({
       success: true,
       data: report
@@ -158,7 +272,8 @@ router.get('/:id', protect, async (req, res) => {
 // @access  Private
 router.post('/', [
   protect,
-  body('projectName').trim().notEmpty().withMessage('Project name is required')
+  body('projectName').trim().notEmpty().withMessage('Project name is required'),
+  body('reportId').trim().notEmpty().withMessage('Report ID is required')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -169,12 +284,80 @@ router.post('/', [
   }
 
   try {
-    const reportData = {
-      ...req.body,
-      user: req.user._id
+    const { reportId, ...reportData } = req.body;
+    
+    // Validate reportId format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(reportId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid report ID format. Expected UUID.'
+      });
+    }
+    
+    // Check if report folder exists (it should have been created during initialization)
+    const reportDir = path.join(__dirname, '../../uploads', `report-${reportId}`);
+    if (!fs.existsSync(reportDir)) {
+      // Auto-create if missing (shouldn't happen, but defensive programming)
+      console.warn(`Report folder not found during save, creating: report-${reportId}`);
+      try {
+        fs.mkdirSync(reportDir, { recursive: true });
+      } catch (err) {
+        console.error('Error creating report folder:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create report folder. Check server permissions.'
+        });
+      }
+    }
+
+    // Create the report in database with the provided reportId as a custom field
+    const finalReportData = {
+      ...reportData,
+      user: req.user._id,
+      customReportId: reportId  // Store the UUID for reference
     };
 
-    const report = await Report.create(reportData);
+    const report = await Report.create(finalReportData);
+    
+    // Rename the folder from report-{uuid} to report-{mongoId}
+    // This maintains consistency with existing folder structure
+    const newReportDir = path.join(__dirname, '../../uploads', `report-${report._id}`);
+    
+    try {
+      // Only rename if the directories are different
+      if (reportDir !== newReportDir) {
+        if (fs.existsSync(newReportDir)) {
+          // If destination exists, remove it first (shouldn't happen)
+          fs.rmSync(newReportDir, { recursive: true, force: true });
+        }
+        fs.renameSync(reportDir, newReportDir);
+        console.log(`Renamed folder: report-${reportId} -> report-${report._id}`);
+        
+        // Update image paths in the report data
+        if (report.vulnerabilities && report.vulnerabilities.length > 0) {
+          let updated = false;
+          report.vulnerabilities.forEach(vuln => {
+            if (vuln.attacks && vuln.attacks.length > 0) {
+              vuln.attacks.forEach(attack => {
+                if (attack.type === 'image' && attack.image) {
+                  attack.image = attack.image.replace(`report-${reportId}`, `report-${report._id}`);
+                  updated = true;
+                }
+              });
+            }
+          });
+          
+          if (updated) {
+            await report.save();
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error renaming report folder:', err);
+      // Don't fail the request, just log the error
+      // The report is created, just the folder rename failed
+    }
 
     res.status(201).json({
       success: true,
@@ -209,6 +392,12 @@ router.put('/:id', protect, async (req, res) => {
         success: false,
         message: 'Not authorized to update this report'
       });
+    }
+
+    // Ensure report folder exists
+    const reportDir = path.join(__dirname, '../../uploads', `report-${req.params.id}`);
+    if (!fs.existsSync(reportDir)) {
+      fs.mkdirSync(reportDir, { recursive: true });
     }
 
     report = await Report.findByIdAndUpdate(req.params.id, req.body, {
@@ -253,6 +442,16 @@ router.delete('/:id', protect, async (req, res) => {
 
     await report.deleteOne();
 
+    // Delete the report folder and all its contents
+    const reportDir = path.join(__dirname, '../../uploads', `report-${req.params.id}`);
+    if (fs.existsSync(reportDir)) {
+      try {
+        fs.rmSync(reportDir, { recursive: true, force: true });
+      } catch (err) {
+        console.error('Error deleting report folder:', err);
+      }
+    }
+
     res.json({
       success: true,
       message: 'Report deleted successfully'
@@ -266,10 +465,11 @@ router.delete('/:id', protect, async (req, res) => {
   }
 });
 
-// @route   POST /api/reports/upload-images
+// @route   POST /api/reports/:reportId/upload-images/:vulnIdentifier?
 // @desc    Upload vulnerability proof-of-concept images
 // @access  Private
-router.post('/upload-images', protect, upload.array('images', 10), (req, res) => {
+// @param   vulnIdentifier - Can be vulnId (e.g., "a1b2c3d4") or numeric index (e.g., "0") for backward compatibility
+router.post('/:reportId/upload-images/:vulnIdentifier?', protect, upload.array('images', 10), (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
@@ -278,23 +478,33 @@ router.post('/upload-images', protect, upload.array('images', 10), (req, res) =>
       });
     }
 
-    const reportId = req.body.reportId || req.query.reportId || 'temp';
-    const vulnIndex = req.body.vulnIndex || req.query.vulnIndex || '0';
+    const reportId = req.params.reportId;
+    const vulnIdentifier = req.params.vulnIdentifier || '0';
+    
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Report ID is required'
+      });
+    }
 
     // Return the file paths with the new structure
     const filePaths = req.files.map(file => 
-      `/uploads/report-${reportId}/vuln-${vulnIndex}/${file.filename}`
+      `/uploads/report-${reportId}/vuln-${vulnIdentifier}/${file.filename}`
     );
+    
+    console.log(`Uploaded ${filePaths.length} images to report-${reportId}/vuln-${vulnIdentifier}`);
     
     res.json({
       success: true,
-      files: filePaths
+      files: filePaths,
+      message: `Successfully uploaded ${filePaths.length} image(s)`
     });
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error uploading files'
+      message: error.message || 'Error uploading files'
     });
   }
 });
@@ -329,11 +539,18 @@ router.post('/:id/generate', protect, async (req, res) => {
     // Initialize ImageModule
     const imageModule = new ImageModule(imageOpts);
     
+    // Initialize CrossReferenceModule
+    const crossRefModule = new CrossReferenceModule({
+      figureLabel: 'Figure',
+      bookmarkPrefix: '_Fig',
+      startNumber: 1
+    });
+    
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
       parser: angularParser,  // Add angular parser to support conditionals
-      modules: [imageModule]   // Add image module
+      modules: [imageModule, crossRefModule]   // Add image module and crossref module
     });
 
     // Prepare data for template
