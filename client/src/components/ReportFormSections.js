@@ -197,21 +197,20 @@ function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
                   type="text"
                   value={attack.caption || ''}
                   onChange={(e) => handleAttackChange(vulnIndex, idx, 'caption', e.target.value)}
-                  placeholder="Image caption"
+                  placeholder="Brief description of this proof"
                   className="attack-caption-input"
                 />
-                <label className="attack-meta-label">File path</label>
+                <label className="attack-meta-label" style={{ marginTop: '8px' }}>Image Path</label>
                 <input
                   type="text"
                   value={attack.image || ''}
                   onChange={(e) => handleAttackChange(vulnIndex, idx, 'image', e.target.value)}
-                  placeholder="e.g., screenshot.png"
+                  placeholder="/uploads/report-xxx/vuln-xxx/file.png"
                   className="attack-path-input"
                 />
               </div>
             </div>
           )}
-
         </div>
       ))}
     </div>
@@ -219,45 +218,51 @@ function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
 }
 
 // ---------------------------------------------------------------------------
-// Exported section components
+// Top-level sections
 // ---------------------------------------------------------------------------
 
-/** Static fields: project info + client + dates + executive summary + revisioner + approver */
+/** Static: Basic fields */
 export function StaticFieldsSection({ formData, handleChange, handleTemplateChange }) {
   return (
     <section className="form-section">
-      <h2>Project Information</h2>
+      <h2>Basic Information</h2>
+
+      {/* Template Selection */}
+      <TemplateSelector
+        selectedTemplateId={formData.template}
+        onTemplateChange={handleTemplateChange}
+      />
 
       <div className="form-group">
         <label>Project Name *</label>
-        <input type="text" name="projectName" value={formData.projectName}
-          onChange={handleChange} required placeholder="e.g., ABC Corp Web Application Assessment" />
+        <input type="text" name="projectName" value={formData.projectName} required
+          onChange={handleChange} placeholder="e.g., ACME Corp Security Assessment" />
       </div>
-
-      {/* Template Selector */}
-      <TemplateSelector 
-        selectedTemplateId={formData.template} 
-        onTemplateChange={handleTemplateChange}
-      />
 
       <div className="form-row">
         <div className="form-group">
           <label>Client Name</label>
           <input type="text" name="client_name" value={formData.client_name}
-            onChange={handleChange} placeholder="Client / target company name" />
+            onChange={handleChange} placeholder="e.g., ACME Corporation" />
         </div>
-
         <div className="form-group">
           <label>Testing Company Name</label>
           <input type="text" name="testing_company_name" value={formData.testing_company_name}
-            onChange={handleChange} placeholder="Your company name" />
+            onChange={handleChange} placeholder="e.g., SecureTest Inc." />
         </div>
       </div>
 
-      <div className="form-group">
-        <label>Testing Mode</label>
-        <input type="text" name="testing_mode" value={formData.testing_mode}
-          onChange={handleChange} placeholder="e.g., Black-box, White-box, Grey-box" />
+      <div className="form-row">
+        <div className="form-group">
+          <label>Testing Mode</label>
+          <input type="text" name="testing_mode" value={formData.testing_mode}
+            onChange={handleChange} placeholder="e.g., Black Box, White Box, Gray Box" />
+        </div>
+        <div className="form-group">
+          <label>Testing Duration</label>
+          <input type="text" name="testing_duration" value={formData.testing_duration}
+            onChange={handleChange} placeholder="e.g., 2 weeks" />
+        </div>
       </div>
 
       <div className="form-row">
@@ -266,44 +271,32 @@ export function StaticFieldsSection({ formData, handleChange, handleTemplateChan
           <input type="date" name="testing_start_date" value={formData.testing_start_date}
             onChange={handleChange} />
         </div>
-
         <div className="form-group">
           <label>Testing End Date</label>
           <input type="date" name="testing_end_date" value={formData.testing_end_date}
             onChange={handleChange} />
         </div>
-
-        <div className="form-group">
-          <label>Testing Duration</label>
-          <input type="text" name="testing_duration" value={formData.testing_duration}
-            onChange={handleChange} placeholder="e.g., 10 days, 2 weeks" />
-        </div>
       </div>
 
       <div className="form-group">
         <label>Executive Summary</label>
-        <textarea name="executive_summary" value={formData.executive_summary}
-          onChange={handleChange} rows="5"
-          placeholder="High-level summary of the engagement, scope, and key findings…" />
+        <textarea name="executive_summary" value={formData.executive_summary} rows="6"
+          onChange={handleChange} placeholder="High-level overview of the assessment results…" />
       </div>
-
-      <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Review & Approval</h3>
 
       <div className="form-row">
         <div className="form-group">
           <label>Revisioner Name</label>
           <input type="text" name="revisioner_name" value={formData.revisioner_name}
-            onChange={handleChange} placeholder="e.g., Jane Doe" />
+            onChange={handleChange} placeholder="e.g., John Doe" />
         </div>
-
         <div className="form-group">
           <label>Revisioner Role</label>
           <input type="text" name="revisioner_role" value={formData.revisioner_role}
-            onChange={handleChange} placeholder="e.g., Lead Security Analyst" />
+            onChange={handleChange} placeholder="e.g., Senior Analyst" />
         </div>
-
         <div className="form-group">
-          <label>Revisioner Date</label>
+          <label>Revision Date</label>
           <input type="date" name="revisioner_date" value={formData.revisioner_date}
             onChange={handleChange} />
         </div>
@@ -313,11 +306,10 @@ export function StaticFieldsSection({ formData, handleChange, handleTemplateChan
         <div className="form-group">
           <label>Approver Name</label>
           <input type="text" name="approver_name" value={formData.approver_name}
-            onChange={handleChange} placeholder="e.g., John Smith" />
+            onChange={handleChange} placeholder="e.g., Jane Smith" />
         </div>
-
         <div className="form-group">
-          <label>Approver Date</label>
+          <label>Approval Date</label>
           <input type="date" name="approver_date" value={formData.approver_date}
             onChange={handleChange} />
         </div>
@@ -336,7 +328,7 @@ export function TargetsSection({ formData, addTarget, removeTarget, handleTarget
       </div>
 
       {formData.targets.map((target, index) => (
-        <div key={index} className="form-group-array">
+        <div key={index} className="array-item">
           <div className="array-header">
             <h4>Target {index + 1}</h4>
             {formData.targets.length > 1 && (
@@ -354,13 +346,13 @@ export function TargetsSection({ formData, addTarget, removeTarget, handleTarget
               <label>URL</label>
               <input type="text" value={target.url}
                 onChange={(e) => handleTargetChange(index, 'url', e.target.value)}
-                placeholder="https://example.com" />
+                placeholder="e.g., https://example.com" />
             </div>
             <div className="form-group">
-              <label>Severity</label>
+              <label>Severity Level</label>
               <input type="text" value={target.severity}
                 onChange={(e) => handleTargetChange(index, 'severity', e.target.value)}
-                placeholder="e.g., Critica, Alta, Media, Bassa" />
+                placeholder="e.g., High" />
             </div>
           </div>
         </div>
@@ -369,17 +361,17 @@ export function TargetsSection({ formData, addTarget, removeTarget, handleTarget
   );
 }
 
-/** Dynamic: Credentials list (formerly User Accounts) */
+/** Dynamic: Credentials list */
 export function CredentialsSection({ formData, addCredential, removeCredential, handleCredentialChange }) {
   return (
     <section className="form-section">
       <div className="section-header">
-        <h2>Test Credentials</h2>
+        <h2>Credentials</h2>
         <button type="button" onClick={addCredential} className="btn btn-sm btn-secondary">+ Add Credential</button>
       </div>
 
-      {formData.credentials.map((cred, index) => (
-        <div key={index} className="form-group-array">
+      {formData.credentials.map((credential, index) => (
+        <div key={index} className="array-item">
           <div className="array-header">
             <h4>Credential {index + 1}</h4>
             {formData.credentials.length > 1 && (
@@ -389,13 +381,13 @@ export function CredentialsSection({ formData, addCredential, removeCredential, 
           <div className="form-row">
             <div className="form-group">
               <label>Username</label>
-              <input type="text" value={cred.username}
+              <input type="text" value={credential.username}
                 onChange={(e) => handleCredentialChange(index, 'username', e.target.value)}
-                placeholder="testuser@example.com" />
+                placeholder="e.g., testuser@example.com" />
             </div>
             <div className="form-group">
               <label>Description</label>
-              <input type="text" value={cred.description}
+              <input type="text" value={credential.description}
                 onChange={(e) => handleCredentialChange(index, 'description', e.target.value)}
                 placeholder="e.g., Admin account for testing" />
             </div>
@@ -416,7 +408,7 @@ export function TestersSection({ formData, addTester, removeTester, handleTester
       </div>
 
       {formData.testers.map((tester, index) => (
-        <div key={index} className="form-group-array">
+        <div key={index} className="array-item">
           <div className="array-header">
             <h4>Tester {index + 1}</h4>
             {formData.testers.length > 1 && (
@@ -475,6 +467,24 @@ export function VulnerabilitiesSection({
     handleVulnChange(vulnIndex, 'cvss_score', score);
     handleVulnChange(vulnIndex, 'severity', severity);
     handleVulnChange(vulnIndex, 'cvss_vector', vector);
+  };
+
+  // FIXED: Added confirmation dialog before removing vulnerability
+  const handleRemoveVulnerability = (index) => {
+    const vuln = formData.vulnerabilities[index];
+    const vulnName = vuln.name || 'this vulnerability';
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${vulnName}"?\n\n` +
+      `This will permanently remove:\n` +
+      `• The vulnerability data\n` +
+      `• All associated images and files\n\n` +
+      `This action cannot be undone.`
+    );
+    
+    if (confirmed) {
+      removeVulnerability(index);
+    }
   };
 
   const handlers = { 
@@ -555,7 +565,14 @@ export function VulnerabilitiesSection({
                 📋 Duplicate
               </button>
               {formData.vulnerabilities.length > 1 && (
-                <button type="button" onClick={() => removeVulnerability(vi)} className="btn btn-sm btn-danger">Remove</button>
+                <button 
+                  type="button" 
+                  onClick={() => handleRemoveVulnerability(vi)} 
+                  className="btn btn-sm btn-danger"
+                  title="Delete this vulnerability"
+                >
+                  Remove
+                </button>
               )}
             </div>
           </div>

@@ -435,6 +435,42 @@ router.put('/:id', protect, async (req, res) => {
       fs.mkdirSync(reportDir, { recursive: true });
     }
 
+    // CLEANUP: Delete orphaned vulnerability folders
+    // Get the old vulnerability IDs before update
+    const oldVulnIds = new Set(
+      (report.vulnerabilities || [])
+        .map(v => v.vulnId)
+        .filter(Boolean)
+    );
+
+    // Get the new vulnerability IDs from the request
+    const newVulnIds = new Set(
+      (req.body.vulnerabilities || [])
+        .map(v => v.vulnId)
+        .filter(Boolean)
+    );
+
+    // Find deleted vulnerability IDs
+    const deletedVulnIds = [...oldVulnIds].filter(id => !newVulnIds.has(id));
+
+    // Delete folders for removed vulnerabilities
+    if (deletedVulnIds.length > 0 && fs.existsSync(reportDir)) {
+      console.log(`Cleaning up ${deletedVulnIds.length} orphaned vulnerability folder(s)...`);
+      
+      deletedVulnIds.forEach(vulnId => {
+        const vulnDir = path.join(reportDir, `vuln-${vulnId}`);
+        if (fs.existsSync(vulnDir)) {
+          try {
+            fs.rmSync(vulnDir, { recursive: true, force: true });
+            console.log(`Deleted orphaned folder: ${vulnDir}`);
+          } catch (err) {
+            console.error(`Error deleting vulnerability folder ${vulnDir}:`, err);
+          }
+        }
+      });
+    }
+
+    // Update the report
     report = await Report.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true
