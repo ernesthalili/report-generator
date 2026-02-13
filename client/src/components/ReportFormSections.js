@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import CVSSCalculator from './CVSSCalculator';
+import TemplateSelector from './TemplateSelector';
 
 // ---------------------------------------------------------------------------
 // Small reusable primitives
 // ---------------------------------------------------------------------------
 
 /**
- * Endpoints section - structured with index, http_method, path, parameter
+ * Endpoints section - ID, HTTP Method, Path, Parameter
  */
 function EndpointsSection({ vulnIndex, vuln, handlers }) {
   const { addVulnArrayItem, removeVulnArrayItem, handleEndpointChange } = handlers;
   const endpoints = vuln.endpoints || [];
-
   const httpMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 
   return (
@@ -26,51 +26,59 @@ function EndpointsSection({ vulnIndex, vuln, handlers }) {
           + Add Endpoint
         </button>
       </div>
+
+      {endpoints.length > 0 && (
+        <div className="endpoint-header-row">
+          <span className="ep-col-id">ID</span>
+          <span className="ep-col-method">HTTP Method</span>
+          <span className="ep-col-path">Path</span>
+          <span className="ep-col-param">Parameter</span>
+          <span className="ep-col-del" />
+        </div>
+      )}
+
       {endpoints.map((endpoint, idx) => (
-        <div key={idx} className="list-item endpoint-item" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div key={idx} className="endpoint-row">
           <input
             type="number"
             value={endpoint.index || idx + 1}
             onChange={(e) => handleEndpointChange(vulnIndex, idx, 'index', parseInt(e.target.value) || 1)}
-            placeholder="#"
-            className="endpoint-index"
-            style={{ width: '5px', flexShrink: 0 }}
+            placeholder="1"
+            className="ep-col-id"
           />
           <select
             value={endpoint.http_method || ''}
             onChange={(e) => handleEndpointChange(vulnIndex, idx, 'http_method', e.target.value)}
-            className="http-method-select"
-            style={{ width: '110px', flexShrink: 0 }}
+            className="ep-col-method"
           >
-            <option value="">Method</option>
+            <option value="">— Method —</option>
             {httpMethods.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
           <input
             type="text"
             value={endpoint.path || ''}
             onChange={(e) => handleEndpointChange(vulnIndex, idx, 'path', e.target.value)}
-            placeholder="e.g., /api/login"
-            className="endpoint-path"
-            style={{ flex: '2', minWidth: '150px' }}
+            placeholder="/api/example"
+            className="ep-col-path"
           />
           <input
             type="text"
             value={endpoint.parameter || ''}
             onChange={(e) => handleEndpointChange(vulnIndex, idx, 'parameter', e.target.value)}
             placeholder="e.g., username"
-            className="endpoint-parameter"
-            style={{ flex: '1', minWidth: '120px' }}
+            className="ep-col-param"
           />
-          {endpoints.length > 1 && (
-            <button
-              type="button"
-              onClick={() => removeVulnArrayItem(vulnIndex, 'endpoints', idx)}
-              className="btn btn-sm btn-danger"
-              style={{ flexShrink: 0 }}
-            >
-              ×
-            </button>
-          )}
+          <div className="ep-col-del">
+            {endpoints.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeVulnArrayItem(vulnIndex, 'endpoints', idx)}
+                className="btn btn-sm btn-danger"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
       ))}
     </div>
@@ -78,7 +86,8 @@ function EndpointsSection({ vulnIndex, vuln, handlers }) {
 }
 
 /**
- * Attacks section - can be text or image with caption
+ * Attacks section - text (1/8 select + 7/8 textarea) or
+ *                   image (1/8 select + 4/8 preview + 3/8 caption+path)
  */
 function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
   const { addVulnArrayItem, removeAttack, handleAttackChange, handleImageUpload } = handlers;
@@ -87,7 +96,7 @@ function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
   const handleFileChange = async (e) => {
     if (e.target.files && e.target.files.length > 0) {
       await handleImageUpload(vulnIndex, e.target.files, reportId);
-      e.target.value = ''; // Reset input
+      e.target.value = '';
     }
   };
 
@@ -116,61 +125,93 @@ function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
           </label>
         </div>
       </div>
+
       {attacks.map((attack, idx) => (
         <div key={idx} className="list-item attack-item">
-          <div className="attack-type-row">
-            <select
-              value={attack.type || 'text'}
-              onChange={(e) => handleAttackChange(vulnIndex, idx, 'type', e.target.value)}
-              className="attack-type-select"
-            >
-              <option value="text">Text</option>
-              <option value="image">Image</option>
-            </select>
-            <button
-              type="button"
-              onClick={() => removeAttack(vulnIndex, idx)}
-              className="btn btn-sm btn-danger"
-            >
-              ×
-            </button>
-          </div>
-          
-          {attack.type === 'text' ? (
-            <textarea
-              value={attack.text || ''}
-              onChange={(e) => handleAttackChange(vulnIndex, idx, 'text', e.target.value)}
-              placeholder="Describe the attack or payload used..."
-              rows="3"
-              className="attack-text"
-            />
-          ) : (
-            <div className="attack-image-fields">
-              <input
-                type="text"
-                value={attack.image || ''}
-                onChange={(e) => handleAttackChange(vulnIndex, idx, 'image', e.target.value)}
-                placeholder="Image filename (e.g., screenshot.png)"
-                className="attack-image-path"
-              />
-              {attack.image && (
-                <img 
-                  src={attack.image} 
-                  alt={`Attack proof ${idx + 1}`}
-                  className="image-thumbnail"
-                  style={{ maxWidth: '200px', maxHeight: '150px', marginTop: '8px' }}
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-              )}
-              <input
-                type="text"
-                value={attack.caption || ''}
-                onChange={(e) => handleAttackChange(vulnIndex, idx, 'caption', e.target.value)}
-                placeholder="Image caption"
-                className="attack-image-caption"
+
+          {/* ── TEXT layout: [1/8 type+del] [7/8 textarea] ── */}
+          {(attack.type === 'text' || !attack.type) ? (
+            <div className="attack-text-layout">
+              <div className="attack-ctrl-col">
+                <select
+                  value={attack.type || 'text'}
+                  onChange={(e) => handleAttackChange(vulnIndex, idx, 'type', e.target.value)}
+                  className="attack-type-select"
+                >
+                  <option value="text">Text</option>
+                  <option value="image">Image</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => removeAttack(vulnIndex, idx)}
+                  className="btn btn-sm btn-danger attack-del-btn"
+                >
+                  ×
+                </button>
+              </div>
+              <textarea
+                value={attack.text || ''}
+                onChange={(e) => handleAttackChange(vulnIndex, idx, 'text', e.target.value)}
+                placeholder="Describe the attack or payload used..."
+                rows="4"
+                className="attack-text-area"
               />
             </div>
+          ) : (
+            /* ── IMAGE layout: [1/8 type+del] [4/8 preview] [3/8 caption+path] ── */
+            <div className="attack-image-layout">
+              <div className="attack-ctrl-col">
+                <select
+                  value={attack.type}
+                  onChange={(e) => handleAttackChange(vulnIndex, idx, 'type', e.target.value)}
+                  className="attack-type-select"
+                >
+                  <option value="text">Text</option>
+                  <option value="image">Image</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => removeAttack(vulnIndex, idx)}
+                  className="btn btn-sm btn-danger attack-del-btn"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="attack-preview-col">
+                {attack.image ? (
+                  <img
+                    src={attack.image}
+                    alt={`Proof ${idx + 1}`}
+                    className="attack-image-thumb"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className="attack-preview-empty">No image yet</div>
+                )}
+              </div>
+
+              <div className="attack-meta-col">
+                <label className="attack-meta-label">Caption</label>
+                <input
+                  type="text"
+                  value={attack.caption || ''}
+                  onChange={(e) => handleAttackChange(vulnIndex, idx, 'caption', e.target.value)}
+                  placeholder="Image caption"
+                  className="attack-caption-input"
+                />
+                <label className="attack-meta-label">File path</label>
+                <input
+                  type="text"
+                  value={attack.image || ''}
+                  onChange={(e) => handleAttackChange(vulnIndex, idx, 'image', e.target.value)}
+                  placeholder="e.g., screenshot.png"
+                  className="attack-path-input"
+                />
+              </div>
+            </div>
           )}
+
         </div>
       ))}
     </div>
@@ -182,7 +223,7 @@ function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
 // ---------------------------------------------------------------------------
 
 /** Static fields: project info + client + dates + executive summary + revisioner + approver */
-export function StaticFieldsSection({ formData, handleChange }) {
+export function StaticFieldsSection({ formData, handleChange, handleTemplateChange }) {
   return (
     <section className="form-section">
       <h2>Project Information</h2>
@@ -192,6 +233,12 @@ export function StaticFieldsSection({ formData, handleChange }) {
         <input type="text" name="projectName" value={formData.projectName}
           onChange={handleChange} required placeholder="e.g., ABC Corp Web Application Assessment" />
       </div>
+
+      {/* Template Selector */}
+      <TemplateSelector 
+        selectedTemplateId={formData.template} 
+        onTemplateChange={handleTemplateChange}
+      />
 
       <div className="form-row">
         <div className="form-group">

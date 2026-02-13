@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import CreateReport from './pages/CreateReport';
 import EditReport from './pages/EditReport';
+import Templates from './pages/Templates';
 import './App.css';
 
 // Private Route Component
@@ -48,6 +49,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <EditReport />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/templates" 
+              element={
+                <PrivateRoute>
+                  <Templates />
                 </PrivateRoute>
               } 
             />

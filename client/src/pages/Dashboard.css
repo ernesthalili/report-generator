@@ -1,17 +1,36 @@
+/* ============================================================================
+   DASHBOARD - Dark Cybersecurity Theme with Accenture Colors
+   ============================================================================ */
+
+/* Accenture Color Palette:
+   Primary: #A100FF (Purple)
+   Secondary: #0000FF (Blue) 
+   Accent: #00FFFF (Cyan)
+   Dark: #1a1a1a, #2d2d2d
+*/
+
 .dashboard {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  color: #e0e0e0;
 }
 
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
 .dashboard-header {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border-bottom: 2px solid #A100FF;
   padding: 1.5rem 2rem;
+  box-shadow: 0 4px 20px rgba(161, 0, 255, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .header-content {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
@@ -19,130 +38,629 @@
 }
 
 .dashboard-header h1 {
-  font-size: 1.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #A100FF;
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-shadow: 0 0 20px rgba(161, 0, 255, 0.5);
+  letter-spacing: 1px;
 }
 
 .header-actions {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   align-items: center;
 }
 
 .user-info {
-  color: #555;
+  color: #00FFFF;
   font-weight: 600;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid #00FFFF;
+  border-radius: 4px;
+  font-size: 0.9rem;
 }
 
+/* ============================================================================
+   CONTENT AREA
+   ============================================================================ */
+
 .dashboard-content {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem 2rem;
 }
 
 .content-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(161, 0, 255, 0.3);
 }
 
 .content-header h2 {
-  color: white;
-  font-size: 2rem;
+  color: #ffffff;
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
 }
 
 .header-buttons {
   display: flex;
-  gap: 10px;
-}
-
-.empty-state {
-  background: white;
-  border-radius: 16px;
-  padding: 4rem 2rem;
-  text-align: center;
-}
-
-.empty-state p {
-  font-size: 1.25rem;
-  color: #666;
-  margin-bottom: 2rem;
-}
-
-.reports-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-}
-
-.report-card {
-  background: white;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.report-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.card-header h3 {
-  font-size: 1.25rem;
-  color: #333;
-  flex: 1;
-  margin-right: 1rem;
-}
-
-.card-date {
-  font-size: 0.875rem;
-  color: #999;
-  white-space: nowrap;
-}
-
-.card-body {
-  margin-bottom: 1.5rem;
-}
-
-.card-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.info-label {
-  color: #666;
-  font-size: 0.95rem;
-}
-
-.info-value {
-  font-weight: 600;
-  color: #667eea;
-}
-
-.card-actions {
-  display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
   flex-wrap: wrap;
 }
 
-.card-actions .btn {
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Primary Button - Accenture Purple */
+.btn-primary {
+  background: linear-gradient(135deg, #A100FF 0%, #8000CC 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(161, 0, 255, 0.4);
+  border: 1px solid #A100FF;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #8000CC 0%, #A100FF 100%);
+  box-shadow: 0 6px 20px rgba(161, 0, 255, 0.6);
+  transform: translateY(-2px);
+}
+
+/* Secondary Button - Dark with Cyan accent */
+.btn-secondary {
+  background: #2d2d2d;
+  color: #00FFFF;
+  border: 1px solid #00FFFF;
+  box-shadow: 0 4px 15px rgba(0, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+  background: #3d3d3d;
+  box-shadow: 0 6px 20px rgba(0, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Danger Button */
+.btn-danger {
+  background: #2d2d2d;
+  color: #ff4444;
+  border: 1px solid #ff4444;
+  box-shadow: 0 4px 15px rgba(255, 68, 68, 0.2);
+}
+
+.btn-danger:hover {
+  background: #ff4444;
+  color: white;
+  box-shadow: 0 6px 20px rgba(255, 68, 68, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Small buttons */
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   REPORTS LIST VIEW (Compact)
+   ============================================================================ */
+
+.reports-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.report-card {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 1px solid rgba(161, 0, 255, 0.3);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.report-card:hover {
+  border-color: #A100FF;
+  box-shadow: 0 6px 25px rgba(161, 0, 255, 0.4);
+}
+
+.card-main {
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.report-card:hover {
+  border-color: #A100FF;
+  box-shadow: 0 6px 25px rgba(161, 0, 255, 0.4);
+  transform: translateX(5px);
+  background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+}
+
+/* Report Card Header */
+.card-header {
+  flex: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.card-header h3 {
+  color: #ffffff;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.card-client {
+  color: #00FFFF;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.card-date {
+  color: #888;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+/* Report Card Body - Severity Distribution */
+.card-body {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-info-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.info-value-text {
+  color: #00FFFF;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Severity Distribution Bar */
+.severity-distribution {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.severity-bar-container {
+  display: flex;
+  height: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(161, 0, 255, 0.2);
+}
+
+.severity-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  transition: all 0.3s ease;
+  position: relative;
+  min-width: 30px;
+}
+
+.severity-bar:hover {
+  filter: brightness(1.2);
+  transform: scaleY(1.1);
+}
+
+.severity-count {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  z-index: 1;
+}
+
+.severity-bar-critical {
+  background: linear-gradient(135deg, #222 0%, #000 100%);
+}
+
+.severity-bar-high {
+  background: linear-gradient(135deg, #ef5350 0%, #c62828 100%);
+}
+
+.severity-bar-medium {
+  background: linear-gradient(135deg, #ff7043 0%, #e64a19 100%);
+}
+
+.severity-bar-low {
+  background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+}
+
+/* Severity Labels */
+.severity-labels {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.severity-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.label-critical {
+  color: #aaaaaa;
+}
+
+.label-high {
+  color: #ef5350;
+}
+
+.label-medium {
+  color: #ff7043;
+}
+
+.label-low {
+  color: #4caf50;
+}
+
+/* Expand/Collapse Button */
+.expand-btn {
+  background: rgba(161, 0, 255, 0.1);
+  border: 1px solid rgba(161, 0, 255, 0.3);
+  color: #A100FF;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  align-self: flex-start;
+}
+
+.expand-btn:hover {
+  background: rgba(161, 0, 255, 0.2);
+  border-color: #A100FF;
+  transform: translateX(3px);
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.draft {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid #ffc107;
+}
+
+.status-badge.complete {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border: 1px solid #4caf50;
+}
+
+.status-badge.in-progress {
+  background: rgba(0, 255, 255, 0.2);
+  color: #00FFFF;
+  border: 1px solid #00FFFF;
+}
+
+/* Severity Indicators */
+.severity-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.severity-critical {
+  background: rgba(10, 10, 10, 0.8);
+  color: #ffffff;
+  border: 1px solid #333333;
+}
+
+.severity-high {
+  background: rgba(211, 47, 47, 0.2);
+  color: #ef5350;
+  border: 1px solid #ef5350;
+}
+
+.severity-medium {
+  background: rgba(230, 81, 0, 0.15);
+  color: #ff7043;
+  border: 1px solid #ff7043;
+}
+
+.severity-low {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border: 1px solid #4caf50;
+}
+
+/* Report Card Actions */
+.card-actions {
   flex: 1;
-  min-width: 80px;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* ============================================================================
+   EXPANDABLE VULNERABILITY LIST
+   ============================================================================ */
+
+.card-expanded {
+  border-top: 1px solid rgba(161, 0, 255, 0.3);
+  padding: 1rem 1.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+.vulnerabilities-list h4 {
+  color: #A100FF;
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.vuln-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vuln-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.vuln-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(5px);
+}
+
+.vuln-severity {
+  padding: 0.25rem 0.6rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 70px;
+  text-align: center;
+}
+
+.vuln-item.severity-critical,
+.vuln-severity.severity-critical,
+.vuln-severity.severity-critica {
+  background: rgba(10, 10, 10, 0.8);
+  color: #ffffff;
+  border-color: #333333;
+}
+
+.vuln-item.severity-high,
+.vuln-severity.severity-high,
+.vuln-severity.severity-alta,
+.vuln-severity.severity-alto {
+  background: rgba(211, 47, 47, 0.2);
+  color: #ef5350;
+  border-color: #ef5350;
+}
+
+.vuln-item.severity-medium,
+.vuln-severity.severity-medium,
+.vuln-severity.severity-media,
+.vuln-severity.severity-medio {
+  background: rgba(230, 81, 0, 0.15);
+  color: #ff7043;
+  border-color: #ff7043;
+}
+
+.vuln-item.severity-low,
+.vuln-severity.severity-low,
+.vuln-severity.severity-bassa,
+.vuln-severity.severity-basso {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border-color: #4caf50;
+}
+
+.vuln-severity.severity-unknown {
+  background: rgba(158, 158, 158, 0.2);
+  color: #9e9e9e;
+  border-color: #9e9e9e;
+}
+
+.vuln-name {
+  flex: 1;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.vuln-cvss {
+  color: #00FFFF;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  background: rgba(0, 255, 255, 0.1);
+  border-radius: 3px;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.no-vulns {
+  color: #888;
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+/* ============================================================================
+   LOADING & EMPTY STATES
+   ============================================================================ */
+
+.loading-spinner {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #00FFFF;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.loading-spinner::after {
+  content: '';
+  display: block;
+  margin: 1rem auto;
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(161, 0, 255, 0.3);
+  border-top-color: #A100FF;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(161, 0, 255, 0.05);
+  border: 2px dashed rgba(161, 0, 255, 0.3);
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
+.empty-state p {
+  color: #888;
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+/* ============================================================================
+   ALERTS
+   ============================================================================ */
+
+.alert {
+  padding: 1rem 1.5rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.alert-error {
+  border-left-color: #ff4444;
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+.alert-success {
+  border-left-color: #4caf50;
+  color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.alert-info {
+  border-left-color: #00FFFF;
+  color: #00FFFF;
+  background: rgba(0, 255, 255, 0.1);
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 1200px) {
+  .card-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .card-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .severity-bar-container {
+    height: 20px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -153,6 +671,7 @@
   .header-content {
     flex-direction: column;
     gap: 1rem;
+    align-items: flex-start;
   }
   
   .header-actions {
@@ -167,18 +686,111 @@
   .content-header {
     flex-direction: column;
     gap: 1rem;
-    align-items: stretch;
+    align-items: flex-start;
   }
   
-  .reports-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .card-actions {
+  .header-buttons {
+    width: 100%;
     flex-direction: column;
   }
   
-  .card-actions .btn {
+  .header-buttons .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .card-body {
     width: 100%;
   }
+  
+  .report-card {
+    padding: 0;
+  }
+  
+  .card-main {
+    padding: 1rem;
+  }
+  
+  .card-header h3 {
+    font-size: 1rem;
+  }
+  
+  .severity-labels {
+    font-size: 0.65rem;
+  }
+  
+  .card-expanded {
+    padding: 1rem;
+  }
+  
+  .vuln-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+/* ============================================================================
+   SCROLLBAR STYLING
+   ============================================================================ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #A100FF 0%, #00FFFF 100%);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #00FFFF 0%, #A100FF 100%);
+}
+
+/* ============================================================================
+   ADDITIONAL ENHANCEMENTS
+   ============================================================================ */
+
+/* Glow effect on focus */
+.btn:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(161, 0, 255, 0.3);
+}
+
+/* Cyber grid background pattern (subtle) */
+.dashboard::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(161, 0, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(161, 0, 255, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dashboard > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Info / Informativa → BLUE */
+.vuln-severity.severity-info,
+.vuln-severity.severity-informativa,
+.vuln-severity.severity-informative {
+  background: rgba(2, 119, 189, 0.15);
+  color: #42a5f5;
+  border-color: #42a5f5;
 }

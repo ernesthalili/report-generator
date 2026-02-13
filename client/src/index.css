@@ -1,3 +1,7 @@
+/* ============================================================================
+   INDEX - Global Styles - Dark Cybersecurity Theme
+   ============================================================================ */
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -5,6 +9,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: #0a0a0a;
+  color: #e0e0e0;
 }
 
 code {
@@ -14,4 +20,15 @@ code {
 
 * {
   box-sizing: border-box;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(161, 0, 255, 0.3);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background: rgba(161, 0, 255, 0.3);
+  color: #ffffff;
 }

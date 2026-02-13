@@ -30,6 +30,7 @@ export default function CreateReport() {
   const {
     formData, loading, error,
     handleChange,
+    handleTemplateChange,
     addTarget, removeTarget, handleTargetChange,
     addCredential, removeCredential, handleCredentialChange,
     addTester, removeTester, handleTesterChange,
@@ -84,7 +85,11 @@ export default function CreateReport() {
       {error && <div className="alert alert-error">{error}</div>}
 
       <form onSubmit={handleSubmit} className="report-form">
-        <StaticFieldsSection formData={formData} handleChange={handleChange} />
+        <StaticFieldsSection 
+          formData={formData} 
+          handleChange={handleChange}
+          handleTemplateChange={handleTemplateChange}
+        />
 
         <TargetsSection
           formData={formData}

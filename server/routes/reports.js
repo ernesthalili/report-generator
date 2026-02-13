@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const { protect } = require('../middleware/auth');
 const Report = require('../models/Report');
+const Template = require('../models/Template');
 const Docxtemplater = require('docxtemplater');
 const PizZip = require('pizzip');
 const fs = require('fs');
@@ -10,7 +11,8 @@ const path = require('path');
 const multer = require('multer');
 const expressions = require('angular-expressions');
 const ImageModule = require('docxtemplater-image-module-free');
-const CrossReferenceModule = require('../../../docxtemplater-crossref-module');
+const CrossReferenceModule = require('../../docxtemplater-crossref-module');
+const sizeOf = require('image-size');
 
 // Configure angular-expressions for docxtemplater  
 function angularParser(tag) {
@@ -67,9 +69,40 @@ const imageOpts = {
     return fs.readFileSync(imagePath);
   },
   getSize: function (img, tagValue, tagName) {
-    // Set default image size
-    // You can make this dynamic based on actual image dimensions if needed
-    return [600, 400]; // width, height in pixels
+    // Get actual image dimensions and maintain aspect ratio
+    const projectRoot = path.join(__dirname, '../..');
+    const imagePath = tagValue.startsWith('/') 
+      ? path.join(projectRoot, tagValue) 
+      : path.join(projectRoot, 'uploads', tagValue);
+    
+    try {
+      if (fs.existsSync(imagePath)) {
+        const dimensions = sizeOf(imagePath);
+        const originalWidth = dimensions.width;
+        const originalHeight = dimensions.height;
+        
+        // Maximum width constraint
+        const maxWidth = 600;
+        
+        // Calculate scaled dimensions maintaining aspect ratio
+        let width = originalWidth;
+        let height = originalHeight;
+        
+        if (width > maxWidth) {
+          const scaleFactor = maxWidth / width;
+          width = maxWidth;
+          height = Math.round(height * scaleFactor);
+        }
+        
+        console.log(`Image dimensions: original=${originalWidth}x${originalHeight}, scaled=${width}x${height}`);
+        return [width, height];
+      }
+    } catch (error) {
+      console.error(`Error getting image size for ${imagePath}:`, error);
+    }
+    
+    // Fallback to default size if error occurs
+    return [600, 400];
   }
 };
 
@@ -203,7 +236,9 @@ router.post('/initialize-folder', protect, async (req, res) => {
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
-    const reports = await Report.find({ user: req.user._id }).sort({ updatedAt: -1 });
+    const reports = await Report.find({ user: req.user._id })
+      .populate('template', 'name')
+      .sort({ updatedAt: -1 });
     
     res.json({
       success: true,
@@ -224,7 +259,7 @@ router.get('/', protect, async (req, res) => {
 // @access  Private
 router.get('/:id', protect, async (req, res) => {
   try {
-    const report = await Report.findById(req.params.id);
+    const report = await Report.findById(req.params.id).populate('template', 'name');
 
     if (!report) {
       return res.status(404).json({
@@ -403,7 +438,7 @@ router.put('/:id', protect, async (req, res) => {
     report = await Report.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true
-    });
+    }).populate('template', 'name');
 
     res.json({
       success: true,
@@ -514,7 +549,7 @@ router.post('/:reportId/upload-images/:vulnIdentifier?', protect, upload.array('
 // @access  Private
 router.post('/:id/generate', protect, async (req, res) => {
   try {
-    const report = await Report.findById(req.params.id);
+    const report = await Report.findById(req.params.id).populate('template');
 
     if (!report) {
       return res.status(404).json({
@@ -531,8 +566,27 @@ router.post('/:id/generate', protect, async (req, res) => {
       });
     }
 
+    // Determine which template to use
+    let templatePath;
+    if (report.template && report.template.filePath) {
+      // Use custom template
+      templatePath = report.template.filePath;
+      console.log(`Using custom template: ${report.template.name}`);
+    } else {
+      // Use default template
+      templatePath = path.join(__dirname, '../../templates/WAPT_template.docx');
+      console.log('Using default template');
+    }
+
+    // Check if template exists
+    if (!fs.existsSync(templatePath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Template file not found'
+      });
+    }
+
     // Load the template
-    const templatePath = path.join(__dirname, '../../templates/WAPT_template.docx');
     const content = fs.readFileSync(templatePath, 'binary');
     const zip = new PizZip(content);
     

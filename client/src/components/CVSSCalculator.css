@@ -1,165 +1,214 @@
+/* ============================================================================
+   CVSS CALCULATOR - Dark Cybersecurity Theme with Accenture Colors
+   ============================================================================ */
+
 .cvss-calculator {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 20px;
-    margin: 20px 0;
-  }
-  
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(161, 0, 255, 0.3);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.cvss-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(161, 0, 255, 0.3);
+}
+
+.cvss-header h4 {
+  margin: 0;
+  color: #00FFFF;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.cvss-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 20px;
+  border-radius: 8px;
+  min-width: 120px;
+  border: 2px solid;
+}
+
+.score-value {
+  font-size: 2rem;
+  font-weight: bold;
+  line-height: 1;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.score-severity {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Severity Colors — Critica=black, Alta=red, Media=orange, Bassa=green, Info=blue */
+.severity-critical {
+  background: rgba(20, 20, 20, 0.9);
+  border-color: #555;
+  color: #ffffff;
+}
+
+.severity-high {
+  background: rgba(211, 47, 47, 0.2);
+  border-color: #ef5350;
+  color: #ef5350;
+}
+
+.severity-medium {
+  background: rgba(230, 81, 0, 0.2);
+  border-color: #ff7043;
+  color: #ff7043;
+}
+
+.severity-low {
+  background: rgba(46, 125, 50, 0.2);
+  border-color: #66bb6a;
+  color: #66bb6a;
+}
+
+.severity-info {
+  background: rgba(2, 119, 189, 0.15);
+  border-color: #42a5f5;
+  color: #42a5f5;
+}
+
+.severity-none {
+  background: rgba(158, 158, 158, 0.2);
+  border-color: #9e9e9e;
+  color: #9e9e9e;
+}
+
+/* Metrics Groups */
+.cvss-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cvss-metric-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.metric-label {
+  font-weight: 600;
+  color: #00FFFF;
+  font-size: 0.85rem;
+  min-width: 200px;
+  flex-shrink: 0;
+}
+
+.metric-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.metric-option {
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(161, 0, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #aaa;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.metric-option:hover {
+  border-color: #A100FF;
+  background: rgba(161, 0, 255, 0.1);
+  color: #ffffff;
+}
+
+.metric-option.active {
+  background: linear-gradient(135deg, #A100FF 0%, #8000CC 100%);
+  border-color: #A100FF;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(161, 0, 255, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Vector String */
+.cvss-vector {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 8px;
+}
+
+.cvss-vector h5 {
+  margin: 0 0 10px 0;
+  color: #00FFFF;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vector-string {
+  font-family: 'Courier New', monospace;
+  color: #A100FF;
+  font-size: 0.9rem;
+  word-break: break-all;
+  padding: 8px;
+  background: rgba(161, 0, 255, 0.05);
+  border-radius: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
   .cvss-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 2px solid #dee2e6;
-  }
-  
-  .cvss-header h4 {
-    margin: 0;
-    color: #495057;
-    font-size: 1.1rem;
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
   }
   
   .cvss-score {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 10px 20px;
-    border-radius: 8px;
-    min-width: 120px;
-  }
-  
-  .score-value {
-    font-size: 2rem;
-    font-weight: bold;
-    line-height: 1;
-  }
-  
-  .score-severity {
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin-top: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  
-  .severity-critical {
-    background-color: #721c24;
-    color: white;
-  }
-  
-  .severity-high {
-    background-color: #dc3545;
-    color: white;
-  }
-  
-  .severity-medium {
-    background-color: #fd7e14;
-    color: white;
-  }
-  
-  .severity-low {
-    background-color: #ffc107;
-    color: #212529;
-  }
-  
-  .severity-info {
-    background-color: #17a2b8;
-    color: white;
-  }
-  
-  .cvss-metrics {
-    display: grid;
-    gap: 15px;
+    width: 100%;
   }
   
   .cvss-metric-group {
-    display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 8px;
   }
   
   .metric-label {
-    font-weight: 600;
-    color: #495057;
-    font-size: 0.95rem;
-    margin-bottom: 4px;
+    min-width: auto;
   }
   
   .metric-options {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    width: 100%;
+    justify-content: flex-start;
   }
   
   .metric-option {
-    padding: 8px 16px;
-    border: 2px solid #ced4da;
-    background: white;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: #495057;
-    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 60px;
+    text-align: center;
   }
-  
-  .metric-option:hover {
-    border-color: #007bff;
-    background: #e7f1ff;
-    color: #007bff;
-  }
-  
-  .metric-option.active {
-    border-color: #007bff;
-    background: #007bff;
-    color: white;
-  }
-  
-  .cvss-vector {
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 2px solid #dee2e6;
-  }
-  
-  .cvss-vector label {
-    display: block;
-    font-weight: 600;
-    color: #495057;
-    margin-bottom: 8px;
-    font-size: 0.95rem;
-  }
-  
-  .cvss-vector code {
-    display: block;
-    padding: 12px;
-    background: #fff;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    color: #e83e8c;
-    word-break: break-all;
-    font-family: 'Courier New', monospace;
-  }
-  
-  /* Responsive */
-  @media (max-width: 768px) {
-    .cvss-header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 15px;
-    }
-    
-    .cvss-score {
-      align-self: stretch;
-    }
-    
-    .metric-options {
-      flex-direction: column;
-    }
-    
-    .metric-option {
-      width: 100%;
-    }
-  }
+}

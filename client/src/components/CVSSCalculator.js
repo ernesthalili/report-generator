@@ -183,7 +183,7 @@ const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }
     setSeverity(newSeverity);
 
     // Generate CVSS vector string
-    const vector = `CVSS:3.1/AV:${metrics.AV}/AC:${metrics.AC}/PR:${metrics.PR}/UI:${metrics.UI}/S:${metrics.S}/C:${metrics.C}/I:${metrics.I}/A:${metrics.A}`;
+    const vector = `CVSS 3.1: /AV:${metrics.AV}/AC:${metrics.AC}/PR:${metrics.PR}/UI:${metrics.UI}/S:${metrics.S}/C:${metrics.C}/I:${metrics.I}/A:${metrics.A}`;
     
     // Only notify parent component if we're not initializing
     // This prevents overwriting existing values when editing a report
@@ -243,8 +243,8 @@ const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }
       </div>
 
       <div className="cvss-vector">
-        <label>CVSS Vector:</label>
-        <code>CVSS:3.1/AV:{metrics.AV}/AC:{metrics.AC}/PR:{metrics.PR}/UI:{metrics.UI}/S:{metrics.S}/C:{metrics.C}/I:{metrics.I}/A:{metrics.A}</code>
+        <label>CVSS Vector 3.1: </label>
+        <code>/AV:{metrics.AV}/AC:{metrics.AC}/PR:{metrics.PR}/UI:{metrics.UI}/S:{metrics.S}/C:{metrics.C}/I:{metrics.I}/A:{metrics.A}</code>
       </div>
     </div>
   );

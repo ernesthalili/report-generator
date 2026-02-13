@@ -47,6 +47,7 @@ const BLANK_FORM = () => ({
   revisioner_date:         '',
   approver_name:           '',
   approver_date:           '',
+  template:                null,  // Template ID for custom template selection
   targets:                 [EMPTY_TARGET()],
   credentials:             [EMPTY_CREDENTIAL()],
   testers:                 [EMPTY_TESTER()],
@@ -112,6 +113,11 @@ export default function useReportForm() {
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  }, []);
+
+  // Handle template selection
+  const handleTemplateChange = useCallback((templateId) => {
+    setFormData(prev => ({ ...prev, template: templateId }));
   }, []);
 
   // =========================================================================
@@ -550,6 +556,7 @@ export default function useReportForm() {
   return {
     formData, loading, error,
     handleChange,
+    handleTemplateChange,
     addTarget, removeTarget, handleTargetChange,
     addCredential, removeCredential, handleCredentialChange,
     addTester, removeTester, handleTesterChange,

@@ -93,6 +93,13 @@ const reportSchema = new mongoose.Schema({
   approver_name:           { type: String },
   approver_date:           { type: Date },
 
+  // ---- Template selection ----
+  template: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Template',
+    default: null  // null means use default template
+  },
+
   // ---- DYNAMIC collections (appear N times per report) ----
   targets:         [targetSchema],          // TARGET#, TARGET# URL, TARGET# SEVERITY
   credentials:     [userAccountSchema],     // USERNAME#, USERNAME# DESCRIPTION (renamed from 'userAccounts')

@@ -45,7 +45,7 @@ function Register() {
     <div className="auth-container">
       <div className="auth-box">
         <div className="auth-header">
-          <h1>⚡ PenTest Reporter</h1>
+          <h1>Report Generator</h1>
           <h2>Create Account</h2>
         </div>
 

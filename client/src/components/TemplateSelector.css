@@ -1,0 +1,35 @@
+.template-selector {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+  background-color: white;
+}
+
+.template-selector:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.template-selector-loading {
+  padding: 0.75rem;
+  color: #718096;
+  font-style: italic;
+}
+
+.error-text {
+  display: block;
+  margin-top: 0.5rem;
+  color: #c53030;
+  font-size: 0.875rem;
+}
+
+.help-text {
+  display: block;
+  margin-top: 0.5rem;
+  color: #718096;
+  font-size: 0.875rem;
+}

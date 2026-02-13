@@ -20,6 +20,7 @@ export default function EditReport() {
   const {
     formData, loading, error,
     handleChange,
+    handleTemplateChange,
     addTarget, removeTarget, handleTargetChange,
     addCredential, removeCredential, handleCredentialChange,
     addTester, removeTester, handleTesterChange,
@@ -79,7 +80,11 @@ export default function EditReport() {
       {(fetchErr || error) && <div className="alert alert-error">{fetchErr || error}</div>}
 
       <form onSubmit={handleSubmit} className="report-form">
-        <StaticFieldsSection formData={formData} handleChange={handleChange} />
+        <StaticFieldsSection 
+          formData={formData} 
+          handleChange={handleChange}
+          handleTemplateChange={handleTemplateChange}
+        />
 
         <TargetsSection
           formData={formData}
