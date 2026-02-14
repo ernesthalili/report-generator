@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import TemplateManager from '../components/TemplateManager';
+import Copyright from '../components/Copyright';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -308,6 +309,9 @@ function Dashboard() {
             })}
           </div>
         )}
+
+        {/* Copyright Footer */}
+        <Copyright />
       </div>
 
       {showTemplateManager && (

@@ -1,0 +1,30 @@
+/* Copyright Footer - Universal Styling */
+.copyright-footer {
+  text-align: center;
+  padding: 20px;
+  margin-top: 40px;
+  border-top: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.copyright-footer p {
+  margin: 0;
+}
+
+/* For auth pages (login/register) - INSIDE the panel */
+.auth-box .copyright-footer {
+  margin-top: 25px;
+  padding: 15px 0 0 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* For dashboard - at bottom of content */
+.dashboard-content .copyright-footer {
+  margin-top: 60px;
+  padding: 30px 20px;
+  border-top: 1px solid #e5e7eb;
+  color: #6b7280;
+}

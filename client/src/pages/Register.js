@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Copyright from '../components/Copyright';
 import './Auth.css';
 
 function Register() {
@@ -110,6 +111,9 @@ function Register() {
         <div className="auth-footer">
           <p>Already have an account? <Link to="/login">Login here</Link></p>
         </div>
+
+        {/* Copyright Footer - Inside Panel */}
+        <Copyright />
       </div>
     </div>
   );

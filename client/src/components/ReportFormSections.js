@@ -685,7 +685,7 @@ export function VulnerabilitiesSection({
                 <textarea value={vuln.internal_notes || ''} rows="3"
                   onChange={(e) => handleVulnChange(vi, 'internal_notes', e.target.value)}
                   placeholder="Personal notes, testing details, or any information for internal use only…"
-                  style={{ borderColor: '#ffa500', backgroundColor: '#fffbf0' }} />
+                  style={{ borderColor: '#ffa500', backgroundColor: '#fffbf0', color: '#333' }} />
               </div>
 
               {/* Endpoints section */}
