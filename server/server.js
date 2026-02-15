@@ -43,6 +43,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/vulnerability-templates', require('./routes/vulnerability-templates'));
 app.use('/api/templates', require('./routes/templates'));
+app.use('/api/ai', require('./routes/ai'));
 
 // Health check route
 app.get('/api/health', (req, res) => {

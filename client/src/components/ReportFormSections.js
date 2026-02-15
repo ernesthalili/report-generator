@@ -1,10 +1,781 @@
 import React, { useState } from 'react';
 import CVSSCalculator from './CVSSCalculator';
 import TemplateSelector from './TemplateSelector';
+import axios from 'axios';
 
-// ---------------------------------------------------------------------------
-// Small reusable primitives
-// ---------------------------------------------------------------------------
+// ============================================================================
+// AI ENHANCEMENT - UTILITY FUNCTIONS (Client-side masking)
+// ============================================================================
+
+/**
+ * Client-side masking patterns (must match backend)
+ */
+const PATTERNS = {
+  ipv4: /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+  ipv6: /\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b|\b(?:[0-9a-fA-F]{1,4}:){1,7}:\b|\b::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}\b/g,
+  email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+  url: /\b(?:https?|ftp):\/\/[^\s<>"{}|\\^`\[\]]+\b/g,
+  creditCard: /\b(?:\d{4}[\s-]?){3}\d{4}\b/g,
+  phone: /\b(?:\+?1[-.]?)?\(?([0-9]{3})\)?[-.]?([0-9]{3})[-.]?([0-9]{4})\b/g,
+  ssn: /\b\d{3}-\d{2}-\d{4}\b/g,
+  apiKey: /\b(?:api[_-]?key|token|bearer|auth[_-]?token)[:\s=]+['\"]?([A-Za-z0-9_\-\.]+)['\"]?\b/gi,
+  awsAccessKey: /\b(AKIA[0-9A-Z]{16})\b/g,
+  awsSecretKey: /\b([A-Za-z0-9/+=]{40})\b/g,
+  privateKey: /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC )?PRIVATE KEY-----/g,
+  password: /\b(?:password|pwd|pass)[:\s=]+['\"]?([^\s'"<>]+)['\"]?\b/gi,
+  jwt: /\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+};
+
+/**
+ * Client-side mask function for preview
+ */
+function maskSensitiveDataClient(text) {
+  if (!text || typeof text !== 'string') {
+    return { maskedText: text, detectedTypes: [], maskMap: {} };
+  }
+
+  let maskedText = text;
+  const detectedTypes = new Set();
+  const maskMap = {}; // token -> original value
+  let tokenCounter = 0;
+
+  Object.entries(PATTERNS).forEach(([type, pattern]) => {
+    const matches = maskedText.match(pattern);
+    
+    if (matches && matches.length > 0) {
+      detectedTypes.add(type);
+      
+      matches.forEach((match) => {
+        const token = `${type.toUpperCase()}_${tokenCounter}`;
+        tokenCounter++;
+        maskMap[token] = match;
+        const escapedMatch = match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        maskedText = maskedText.replace(new RegExp(escapedMatch, 'g'), token);
+      });
+    }
+  });
+
+  return {
+    maskedText,
+    detectedTypes: Array.from(detectedTypes),
+    maskMap
+  };
+}
+
+/**
+ * Client-side unmask function to restore original values
+ */
+function unmaskText(maskedText, maskMap) {
+  if (!maskedText || !maskMap) return maskedText;
+  
+  let unmaskedText = maskedText;
+  
+  // Replace each token with its original value
+  Object.entries(maskMap).forEach(([token, original]) => {
+    unmaskedText = unmaskedText.replace(new RegExp(token, 'g'), original);
+  });
+  
+  return unmaskedText;
+}
+
+// ============================================================================
+// AI RESULT MODAL - Show and edit AI output before applying
+// ============================================================================
+
+/**
+ * Modal showing AI result with side-by-side comparison
+ */
+function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult }) {
+  const [editedResult, setEditedResult] = useState(aiResult);
+
+  // Update edited result when aiResult prop changes
+  React.useEffect(() => {
+    setEditedResult(aiResult);
+  }, [aiResult]);
+
+  if (!isOpen) return null;
+
+  const handleApply = () => {
+    onApply(editedResult);
+  };
+
+  return (
+    <div className="ai-modal-overlay" onClick={onClose}>
+      <div className="ai-modal-content ai-result-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="ai-modal-header">
+          <h3>✨ AI Enhancement Result</h3>
+          <button className="ai-modal-close" onClick={onClose}>×</button>
+        </div>
+        
+        <div className="ai-modal-body">
+          <div className="ai-result-comparison">
+            {/* Left side - Original */}
+            <div className="ai-result-column">
+              <label className="ai-result-column-label">
+                <span className="ai-result-icon">📄</span>
+                Original Text
+              </label>
+              <div className="ai-result-text-box ai-result-original">
+                {originalText}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="ai-result-divider">
+              <div className="ai-result-arrow">→</div>
+            </div>
+
+            {/* Right side - AI Result (Editable) */}
+            <div className="ai-result-column">
+              <label className="ai-result-column-label">
+                <span className="ai-result-icon">✨</span>
+                AI Enhanced
+                <span className="ai-editable-label">✏️ Editable</span>
+              </label>
+              <textarea
+                className="ai-result-text-box ai-result-enhanced ai-modal-editable"
+                value={editedResult}
+                onChange={(e) => setEditedResult(e.target.value)}
+                rows="12"
+              />
+            </div>
+          </div>
+
+          <div className="ai-edit-hint">
+            💡 You can edit the AI result above before applying it to your report
+          </div>
+        </div>
+
+        <div className="ai-modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>
+            Discard Changes
+          </button>
+          <button className="btn btn-primary" onClick={handleApply}>
+            Apply Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// AI ENHANCEMENT PREVIEW MODAL
+// ============================================================================
+
+/**
+ * Modal showing masked text preview before sending to AI
+ */
+function AIPreviewModal({ isOpen, onClose, onConfirm, originalText, maskedText, detectedTypes, action, customPrompt }) {
+  const [editedMaskedText, setEditedMaskedText] = useState(maskedText);
+
+  // Update edited text when maskedText prop changes
+  React.useEffect(() => {
+    setEditedMaskedText(maskedText);
+  }, [maskedText]);
+
+  if (!isOpen) return null;
+
+  const actionLabels = {
+    grammar: 'Fix Grammar',
+    professional: 'Make Professional',
+    technical: 'Add Technical Details',
+    custom: 'Custom Prompt'
+  };
+
+  const typeLabels = {
+    ipv4: 'IP Addresses (IPv4)',
+    ipv6: 'IP Addresses (IPv6)',
+    email: 'Email Addresses',
+    url: 'URLs',
+    creditCard: 'Credit Card Numbers',
+    phone: 'Phone Numbers',
+    ssn: 'Social Security Numbers',
+    apiKey: 'API Keys/Tokens',
+    awsAccessKey: 'AWS Access Keys',
+    awsSecretKey: 'AWS Secret Keys',
+    privateKey: 'Private Keys',
+    password: 'Passwords',
+    jwt: 'JWT Tokens'
+  };
+
+  const handleConfirm = () => {
+    onConfirm(editedMaskedText, customPrompt);
+  };
+
+  return (
+    <div className="ai-modal-overlay" onClick={onClose}>
+      <div className="ai-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="ai-modal-header">
+          <h3>🔒 AI Enhancement Preview</h3>
+          <button className="ai-modal-close" onClick={onClose}>×</button>
+        </div>
+        
+        <div className="ai-modal-body">
+          <div className="ai-modal-action">
+            <strong>Action:</strong> {actionLabels[action]}
+          </div>
+
+          {customPrompt && (
+            <div className="ai-modal-custom-prompt">
+              <strong>Custom Instruction:</strong>
+              <div className="ai-custom-prompt-display">{customPrompt}</div>
+            </div>
+          )}
+
+          {detectedTypes.length > 0 && (
+            <div className="ai-modal-security-notice">
+              <div className="ai-modal-notice-header">
+                <span className="ai-modal-notice-icon">⚠️</span>
+                <strong>Sensitive Data Detected</strong>
+              </div>
+              <p>The following types of sensitive information have been masked:</p>
+              <ul className="ai-modal-detected-list">
+                {detectedTypes.map(type => (
+                  <li key={type}>{typeLabels[type] || type}</li>
+                ))}
+              </ul>
+              <p className="ai-modal-notice-footer">
+                These will be automatically restored in the enhanced text.
+              </p>
+            </div>
+          )}
+
+          <div className="ai-modal-text-preview">
+            <div className="ai-modal-text-section">
+              <label>Original Text:</label>
+              <div className="ai-modal-text-box ai-modal-original">
+                {originalText}
+              </div>
+            </div>
+
+            <div className="ai-modal-text-section">
+              <label>
+                Text to Send to AI: 
+                <span className="ai-editable-label">✏️ Editable</span>
+              </label>
+              <textarea
+                className="ai-modal-text-box ai-modal-masked ai-modal-editable"
+                value={editedMaskedText}
+                onChange={(e) => setEditedMaskedText(e.target.value)}
+                rows="8"
+              />
+              <div className="ai-edit-hint">
+                💡 You can edit the text above before sending to AI
+              </div>
+            </div>
+          </div>
+
+          <div className="ai-modal-info">
+            <strong>Note:</strong> Only the edited version will be sent to the AI service (Groq). 
+            After enhancement, all sensitive data tokens will be automatically restored to their original values.
+          </div>
+        </div>
+
+        <div className="ai-modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={handleConfirm}>
+            Confirm & Enhance
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// AI ENHANCEMENT BUTTON WITH DROPDOWN
+// ============================================================================
+
+/**
+ * Button with dropdown menu for AI enhancement actions
+ */
+function AIEnhanceButton({ text, onEnhance, disabled, savedPrompts, onSavePrompt }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [showSavedPrompts, setShowSavedPrompts] = useState(false);
+
+  const handleActionSelect = (action, customPromptText = '') => {
+    setIsOpen(false);
+    setShowCustomInput(false);
+    
+    // Generate preview with mask map
+    const { maskedText, detectedTypes, maskMap } = maskSensitiveDataClient(text);
+    
+    setPreviewData({
+      action,
+      originalText: text,
+      maskedText,
+      detectedTypes,
+      customPrompt: customPromptText,
+      maskMap // Store for unmasking later
+    });
+    
+    setShowPreview(true);
+  };
+
+  const handleCustomSelect = () => {
+    setIsOpen(false);
+    setShowCustomInput(true);
+  };
+
+  const handleCustomSubmit = () => {
+    if (customPrompt.trim()) {
+      handleActionSelect('custom', customPrompt);
+      setCustomPrompt('');
+    }
+  };
+
+  const handleSavedPromptSelect = (prompt) => {
+    setShowSavedPrompts(false);
+    handleActionSelect('custom', prompt);
+  };
+
+  const handleConfirmEnhance = (editedMaskedText, customPromptText) => {
+    setShowPreview(false);
+    if (previewData) {
+      onEnhance(previewData.action, editedMaskedText, customPromptText, previewData.maskMap);
+      
+      // Save custom prompt if provided and not already saved
+      if (customPromptText && !savedPrompts.includes(customPromptText)) {
+        onSavePrompt(customPromptText);
+      }
+    }
+  };
+
+  const handleClosePreview = () => {
+    setShowPreview(false);
+    setPreviewData(null);
+  };
+
+  const handleCancelCustom = () => {
+    setShowCustomInput(false);
+    setCustomPrompt('');
+  };
+
+  return (
+    <>
+      <div className="ai-enhance-dropdown">
+        <button
+          type="button"
+          className="btn btn-sm btn-ai"
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={disabled || !text || text.trim().length === 0}
+          title="Enhance with AI"
+        >
+          ✨ Enhance
+        </button>
+        
+        {isOpen && (
+          <div className="ai-dropdown-menu">
+            <button
+              type="button"
+              className="ai-dropdown-item"
+              onClick={() => handleActionSelect('grammar')}
+            >
+              <span className="ai-dropdown-icon">✓</span>
+              <div>
+                <div className="ai-dropdown-title">Fix Grammar</div>
+                <div className="ai-dropdown-desc">Correct spelling & punctuation</div>
+              </div>
+            </button>
+            
+            <button
+              type="button"
+              className="ai-dropdown-item"
+              onClick={() => handleActionSelect('professional')}
+            >
+              <span className="ai-dropdown-icon">📝</span>
+              <div>
+                <div className="ai-dropdown-title">Make Professional</div>
+                <div className="ai-dropdown-desc">Formal, report-ready tone</div>
+              </div>
+            </button>
+            
+            <button
+              type="button"
+              className="ai-dropdown-item"
+              onClick={() => handleActionSelect('technical')}
+            >
+              <span className="ai-dropdown-icon">🔧</span>
+              <div>
+                <div className="ai-dropdown-title">Add Technical Details</div>
+                <div className="ai-dropdown-desc">CVEs, vectors, explanations</div>
+              </div>
+            </button>
+
+            <div className="ai-dropdown-divider"></div>
+            
+            <button
+              type="button"
+              className="ai-dropdown-item"
+              onClick={handleCustomSelect}
+            >
+              <span className="ai-dropdown-icon">✏️</span>
+              <div>
+                <div className="ai-dropdown-title">Custom Prompt...</div>
+                <div className="ai-dropdown-desc">Write your own instruction</div>
+              </div>
+            </button>
+
+            {savedPrompts.length > 0 && (
+              <button
+                type="button"
+                className="ai-dropdown-item"
+                onClick={() => setShowSavedPrompts(!showSavedPrompts)}
+              >
+                <span className="ai-dropdown-icon">💾</span>
+                <div>
+                  <div className="ai-dropdown-title">Saved Prompts ({savedPrompts.length})</div>
+                  <div className="ai-dropdown-desc">Use a previously saved prompt</div>
+                </div>
+              </button>
+            )}
+          </div>
+        )}
+
+        {showSavedPrompts && savedPrompts.length > 0 && (
+          <div className="ai-saved-prompts-list">
+            <div className="ai-saved-prompts-header">
+              <span>Saved Prompts</span>
+              <button 
+                type="button" 
+                className="ai-close-saved"
+                onClick={() => setShowSavedPrompts(false)}
+              >
+                ×
+              </button>
+            </div>
+            {savedPrompts.map((prompt, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className="ai-saved-prompt-item"
+                onClick={() => handleSavedPromptSelect(prompt)}
+                title={prompt}
+              >
+                {prompt.length > 50 ? prompt.substring(0, 50) + '...' : prompt}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showCustomInput && (
+        <div className="ai-custom-prompt-input">
+          <textarea
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder="Enter your custom enhancement instruction (e.g., 'Make this more concise' or 'Add OWASP references')"
+            rows="3"
+            autoFocus
+          />
+          <div className="ai-custom-prompt-actions">
+            <button
+              type="button"
+              className="btn btn-sm btn-secondary"
+              onClick={handleCancelCustom}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={handleCustomSubmit}
+              disabled={!customPrompt.trim()}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {previewData && (
+        <AIPreviewModal
+          isOpen={showPreview}
+          onClose={handleClosePreview}
+          onConfirm={handleConfirmEnhance}
+          originalText={previewData.originalText}
+          maskedText={previewData.maskedText}
+          detectedTypes={previewData.detectedTypes}
+          action={previewData.action}
+          customPrompt={previewData.customPrompt}
+        />
+      )}
+    </>
+  );
+}
+
+// ============================================================================
+// ATTACKS SECTION WITH AI ENHANCEMENT
+// ============================================================================
+
+/**
+ * Attacks section - text blocks now have AI enhancement
+ */
+function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
+  const { addVulnArrayItem, removeAttack, handleAttackChange, handleImageUpload } = handlers;
+  const attacks = vuln.attacks || [];
+  
+  // State for AI enhancement
+  const [enhancing, setEnhancing] = useState({}); // attackIdx -> boolean
+  const [enhanceError, setEnhanceError] = useState(null);
+  const [savedPrompts, setSavedPrompts] = useState([]);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [resultData, setResultData] = useState(null);
+  const [currentAttackIndex, setCurrentAttackIndex] = useState(null);
+
+  const handleFileChange = async (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      await handleImageUpload(vulnIndex, e.target.files, reportId);
+      e.target.value = '';
+    }
+  };
+
+  const handleSavePrompt = (prompt) => {
+    if (!savedPrompts.includes(prompt)) {
+      setSavedPrompts(prev => [...prev, prompt]);
+    }
+  };
+
+  const handleEnhanceAttack = async (attackIdx, action, editedMaskedText, customPrompt, maskMap) => {
+    const enhanceKey = `${vulnIndex}-${attackIdx}`;
+    setEnhancing(prev => ({ ...prev, [enhanceKey]: true }));
+    setEnhanceError(null);
+    setCurrentAttackIndex(attackIdx);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Prepare request body based on action type
+      const requestBody = {
+        text: editedMaskedText,
+        action: action
+      };
+
+      // Add custom prompt if provided
+      if (action === 'custom' && customPrompt) {
+        requestBody.customPrompt = customPrompt;
+      }
+
+      const response = await axios.post(
+        '/api/ai/enhance-text',
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        // Unmask the AI result
+        const unmaskedResult = unmaskText(response.data.enhanced, maskMap);
+        
+        // Show result modal instead of directly applying
+        setResultData({
+          originalText: attacks[attackIdx].text,
+          aiResult: unmaskedResult,
+          attackIndex: attackIdx
+        });
+        setShowResultModal(true);
+      }
+    } catch (error) {
+      console.error('Enhancement error:', error);
+      setEnhanceError(
+        error.response?.data?.message || 
+        'Failed to enhance text. Please try again.'
+      );
+      
+      setTimeout(() => setEnhanceError(null), 5000);
+    } finally {
+      setEnhancing(prev => ({ ...prev, [enhanceKey]: false }));
+    }
+  };
+
+  const handleApplyResult = (editedResult) => {
+    if (resultData && resultData.attackIndex !== null) {
+      handleAttackChange(vulnIndex, resultData.attackIndex, 'text', editedResult);
+      setShowResultModal(false);
+      setResultData(null);
+      setCurrentAttackIndex(null);
+    }
+  };
+
+  const handleCloseResultModal = () => {
+    setShowResultModal(false);
+    setResultData(null);
+    setCurrentAttackIndex(null);
+  };
+
+  return (
+    <div className="form-group-list">
+      <div className="list-header">
+        <label>Attacks / Proof of Concept</label>
+        <div>
+          <button
+            type="button"
+            onClick={() => addVulnArrayItem(vulnIndex, 'attacks')}
+            className="btn btn-sm btn-secondary"
+            style={{ marginRight: '8px' }}
+          >
+            + Add Text
+          </button>
+          <label className="btn btn-sm btn-secondary file-upload-btn" style={{ marginBottom: 0 }}>
+            📁 Upload Images
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
+      </div>
+
+      {enhanceError && (
+        <div className="ai-error-message">
+          ⚠️ {enhanceError}
+        </div>
+      )}
+
+      {/* AI Result Modal */}
+      {resultData && (
+        <AIResultModal
+          isOpen={showResultModal}
+          onClose={handleCloseResultModal}
+          onApply={handleApplyResult}
+          originalText={resultData.originalText}
+          aiResult={resultData.aiResult}
+        />
+      )}
+
+      {attacks.map((attack, idx) => {
+        const enhanceKey = `${vulnIndex}-${idx}`;
+        const isEnhancing = enhancing[enhanceKey] || false;
+
+        return (
+          <div key={idx} className="list-item attack-item">
+
+            {/* ── TEXT layout: [1/8 type+del] [7/8 textarea + AI button] ── */}
+            {(attack.type === 'text' || !attack.type) ? (
+              <div className="attack-text-layout">
+                <div className="attack-ctrl-col">
+                  <select
+                    value={attack.type || 'text'}
+                    onChange={(e) => handleAttackChange(vulnIndex, idx, 'type', e.target.value)}
+                    className="attack-type-select"
+                  >
+                    <option value="text">Text</option>
+                    <option value="image">Image</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeAttack(vulnIndex, idx)}
+                    className="btn btn-sm btn-danger attack-del-btn"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                <div className="attack-text-container">
+                  <textarea
+                    value={attack.text || ''}
+                    onChange={(e) => handleAttackChange(vulnIndex, idx, 'text', e.target.value)}
+                    placeholder="Describe the attack or payload used..."
+                    rows="4"
+                    className="attack-text-area"
+                    disabled={isEnhancing}
+                  />
+                  
+                  <div className="attack-ai-controls">
+                    <AIEnhanceButton
+                      text={attack.text}
+                      onEnhance={(action, editedText, customPrompt, maskMap) => handleEnhanceAttack(idx, action, editedText, customPrompt, maskMap)}
+                      disabled={isEnhancing}
+                      savedPrompts={savedPrompts}
+                      onSavePrompt={handleSavePrompt}
+                    />
+                    
+                    {isEnhancing && (
+                      <span className="ai-enhancing-indicator">
+                        ✨ Enhancing...
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── IMAGE layout: [1/8 type+del] [4/8 preview] [3/8 caption+path] ── */
+              <div className="attack-image-layout">
+                <div className="attack-ctrl-col">
+                  <select
+                    value={attack.type}
+                    onChange={(e) => handleAttackChange(vulnIndex, idx, 'type', e.target.value)}
+                    className="attack-type-select"
+                  >
+                    <option value="text">Text</option>
+                    <option value="image">Image</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeAttack(vulnIndex, idx)}
+                    className="btn btn-sm btn-danger attack-del-btn"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="attack-preview-col">
+                  {attack.image ? (
+                    <img
+                      src={attack.image}
+                      alt={`Proof ${idx + 1}`}
+                      className="attack-image-thumb"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="attack-preview-empty">No image yet</div>
+                  )}
+                </div>
+
+                <div className="attack-meta-col">
+                  <label className="attack-meta-label">Caption</label>
+                  <input
+                    type="text"
+                    value={attack.caption || ''}
+                    onChange={(e) => handleAttackChange(vulnIndex, idx, 'caption', e.target.value)}
+                    placeholder="Brief description of this proof"
+                    className="attack-caption-input"
+                  />
+                  <label className="attack-meta-label" style={{ marginTop: '8px' }}>Image Path</label>
+                  <input
+                    type="text"
+                    value={attack.image || ''}
+                    onChange={(e) => handleAttackChange(vulnIndex, idx, 'image', e.target.value)}
+                    placeholder="/uploads/report-xxx/vuln-xxx/file.png"
+                    className="attack-path-input"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================================
+// ENDPOINTS SECTION (unchanged)
+// ============================================================================
 
 /**
  * Endpoints section - ID, HTTP Method, Path, Parameter
@@ -85,141 +856,9 @@ function EndpointsSection({ vulnIndex, vuln, handlers }) {
   );
 }
 
-/**
- * Attacks section - text (1/8 select + 7/8 textarea) or
- *                   image (1/8 select + 4/8 preview + 3/8 caption+path)
- */
-function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
-  const { addVulnArrayItem, removeAttack, handleAttackChange, handleImageUpload } = handlers;
-  const attacks = vuln.attacks || [];
-
-  const handleFileChange = async (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      await handleImageUpload(vulnIndex, e.target.files, reportId);
-      e.target.value = '';
-    }
-  };
-
-  return (
-    <div className="form-group-list">
-      <div className="list-header">
-        <label>Attacks / Proof of Concept</label>
-        <div>
-          <button
-            type="button"
-            onClick={() => addVulnArrayItem(vulnIndex, 'attacks')}
-            className="btn btn-sm btn-secondary"
-            style={{ marginRight: '8px' }}
-          >
-            + Add Text
-          </button>
-          <label className="btn btn-sm btn-secondary file-upload-btn" style={{ marginBottom: 0 }}>
-            📁 Upload Images
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-            />
-          </label>
-        </div>
-      </div>
-
-      {attacks.map((attack, idx) => (
-        <div key={idx} className="list-item attack-item">
-
-          {/* ── TEXT layout: [1/8 type+del] [7/8 textarea] ── */}
-          {(attack.type === 'text' || !attack.type) ? (
-            <div className="attack-text-layout">
-              <div className="attack-ctrl-col">
-                <select
-                  value={attack.type || 'text'}
-                  onChange={(e) => handleAttackChange(vulnIndex, idx, 'type', e.target.value)}
-                  className="attack-type-select"
-                >
-                  <option value="text">Text</option>
-                  <option value="image">Image</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() => removeAttack(vulnIndex, idx)}
-                  className="btn btn-sm btn-danger attack-del-btn"
-                >
-                  ×
-                </button>
-              </div>
-              <textarea
-                value={attack.text || ''}
-                onChange={(e) => handleAttackChange(vulnIndex, idx, 'text', e.target.value)}
-                placeholder="Describe the attack or payload used..."
-                rows="4"
-                className="attack-text-area"
-              />
-            </div>
-          ) : (
-            /* ── IMAGE layout: [1/8 type+del] [4/8 preview] [3/8 caption+path] ── */
-            <div className="attack-image-layout">
-              <div className="attack-ctrl-col">
-                <select
-                  value={attack.type}
-                  onChange={(e) => handleAttackChange(vulnIndex, idx, 'type', e.target.value)}
-                  className="attack-type-select"
-                >
-                  <option value="text">Text</option>
-                  <option value="image">Image</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() => removeAttack(vulnIndex, idx)}
-                  className="btn btn-sm btn-danger attack-del-btn"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="attack-preview-col">
-                {attack.image ? (
-                  <img
-                    src={attack.image}
-                    alt={`Proof ${idx + 1}`}
-                    className="attack-image-thumb"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                ) : (
-                  <div className="attack-preview-empty">No image yet</div>
-                )}
-              </div>
-
-              <div className="attack-meta-col">
-                <label className="attack-meta-label">Caption</label>
-                <input
-                  type="text"
-                  value={attack.caption || ''}
-                  onChange={(e) => handleAttackChange(vulnIndex, idx, 'caption', e.target.value)}
-                  placeholder="Brief description of this proof"
-                  className="attack-caption-input"
-                />
-                <label className="attack-meta-label" style={{ marginTop: '8px' }}>Image Path</label>
-                <input
-                  type="text"
-                  value={attack.image || ''}
-                  onChange={(e) => handleAttackChange(vulnIndex, idx, 'image', e.target.value)}
-                  placeholder="/uploads/report-xxx/vuln-xxx/file.png"
-                  className="attack-path-input"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Top-level sections
-// ---------------------------------------------------------------------------
+// ============================================================================
+// TOP-LEVEL SECTIONS
+// ============================================================================
 
 /** Static: Basic fields */
 export function StaticFieldsSection({ formData, handleChange, handleTemplateChange }) {
@@ -440,19 +1079,123 @@ export function TestersSection({ formData, addTester, removeTester, handleTester
   );
 }
 
-/** Dynamic: Vulnerabilities list */
+/** Scope */
+export function ScopeSection({ formData, handleScopeChange, addScopeItem, removeScopeItem }) {
+  return (
+    <section className="form-section">
+      <h2>Scope</h2>
+      
+      <div className="form-group-list">
+        <div className="list-header">
+          <label>In-Scope Items</label>
+          <button type="button" onClick={() => addScopeItem('in_scope')} className="btn btn-sm btn-secondary">
+            + Add Item
+          </button>
+        </div>
+        
+        {(formData.scope?.in_scope || []).map((item, idx) => (
+          <div key={idx} className="list-item">
+            <input
+              type="text"
+              value={item}
+              onChange={(e) => handleScopeChange('in_scope', idx, e.target.value)}
+              placeholder="e.g., https://example.com"
+              className="list-input"
+            />
+            <button type="button" onClick={() => removeScopeItem('in_scope', idx)} className="btn btn-sm btn-danger">
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="form-group-list">
+        <div className="list-header">
+          <label>Out-of-Scope Items</label>
+          <button type="button" onClick={() => addScopeItem('out_of_scope')} className="btn btn-sm btn-secondary">
+            + Add Item
+          </button>
+        </div>
+        
+        {(formData.scope?.out_of_scope || []).map((item, idx) => (
+          <div key={idx} className="list-item">
+            <input
+              type="text"
+              value={item}
+              onChange={(e) => handleScopeChange('out_of_scope', idx, e.target.value)}
+              placeholder="e.g., Production database"
+              className="list-input"
+            />
+            <button type="button" onClick={() => removeScopeItem('out_of_scope', idx)} className="btn btn-sm btn-danger">
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Methodology */
+export function MethodologySection({ formData, handleMethodologyChange, addMethodologyItem, removeMethodologyItem }) {
+  return (
+    <section className="form-section">
+      <h2>Methodology</h2>
+      
+      <div className="form-group-list">
+        <div className="list-header">
+          <label>Testing Phases</label>
+          <button type="button" onClick={addMethodologyItem} className="btn btn-sm btn-secondary">
+            + Add Phase
+          </button>
+        </div>
+        
+        {(formData.methodology || []).map((item, idx) => (
+          <div key={idx} className="list-item">
+            <input
+              type="text"
+              value={item}
+              onChange={(e) => handleMethodologyChange(idx, e.target.value)}
+              placeholder="e.g., Reconnaissance & Information Gathering"
+              className="list-input"
+            />
+            <button type="button" onClick={() => removeMethodologyItem(idx)} className="btn btn-sm btn-danger">
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Vulnerabilities - with AI enhancement for description field */
 export function VulnerabilitiesSection({
   formData,
-  addVulnerability, removeVulnerability, duplicateVulnerability, handleVulnChange,
-  addVulnArrayItem, removeVulnArrayItem,
-  handleEndpointChange, handleAttackChange,
-  handleImageUpload, removeAttack,
+  addVulnerability,
+  removeVulnerability,
+  duplicateVulnerability,
+  handleVulnChange,
+  addVulnArrayItem,
+  removeVulnArrayItem,
+  handleEndpointChange,
+  handleAttackChange,
+  handleImageUpload,
+  removeAttack,
   reportId,
   handleSaveAsTemplate,
   handleLoadTemplate,
   moveVulnerability
 }) {
   const [collapsedVulns, setCollapsedVulns] = useState({});
+  
+  // AI enhancement state for descriptions
+  const [enhancingDesc, setEnhancingDesc] = useState({});
+  const [enhanceError, setEnhanceError] = useState(null);
+  const [savedPrompts, setSavedPrompts] = useState([]);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [resultData, setResultData] = useState(null);
+  const [currentVulnIndex, setCurrentVulnIndex] = useState(null);
 
   const toggleCollapse = (index) => {
     setCollapsedVulns(prev => ({
@@ -461,15 +1204,14 @@ export function VulnerabilitiesSection({
     }));
   };
 
+  // CVSS Update handler
   const handleCVSSUpdate = (vulnIndex, { score, severity, vector }) => {
-    // Update all three fields together
-    // We need to batch these updates to avoid conflicts
     handleVulnChange(vulnIndex, 'cvss_score', score);
     handleVulnChange(vulnIndex, 'severity', severity);
     handleVulnChange(vulnIndex, 'cvss_vector', vector);
   };
 
-  // FIXED: Added confirmation dialog before removing vulnerability
+  // Confirmation before removing vulnerability
   const handleRemoveVulnerability = (index) => {
     const vuln = formData.vulnerabilities[index];
     const vulnName = vuln.name || 'this vulnerability';
@@ -487,10 +1229,90 @@ export function VulnerabilitiesSection({
     }
   };
 
-  const handlers = { 
-    addVulnArrayItem, removeVulnArrayItem,
-    handleEndpointChange, handleAttackChange,
-    handleImageUpload, removeAttack
+  const handleSavePrompt = (prompt) => {
+    if (!savedPrompts.includes(prompt)) {
+      setSavedPrompts(prev => [...prev, prompt]);
+    }
+  };
+
+  const handleEnhanceDescription = async (vulnIndex, action, editedMaskedText, customPrompt, maskMap) => {
+    setEnhancingDesc(prev => ({ ...prev, [vulnIndex]: true }));
+    setEnhanceError(null);
+    setCurrentVulnIndex(vulnIndex);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Prepare request body based on action type
+      const requestBody = {
+        text: editedMaskedText,
+        action: action
+      };
+
+      // Add custom prompt if provided
+      if (action === 'custom' && customPrompt) {
+        requestBody.customPrompt = customPrompt;
+      }
+
+      const response = await axios.post(
+        '/api/ai/enhance-text',
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        // Unmask the AI result
+        const unmaskedResult = unmaskText(response.data.enhanced, maskMap);
+        
+        // Show result modal instead of directly applying
+        setResultData({
+          originalText: formData.vulnerabilities[vulnIndex].description,
+          aiResult: unmaskedResult,
+          vulnIndex: vulnIndex
+        });
+        setShowResultModal(true);
+      }
+    } catch (error) {
+      console.error('Enhancement error:', error);
+      setEnhanceError(
+        error.response?.data?.message || 
+        'Failed to enhance text. Please try again.'
+      );
+      
+      setTimeout(() => setEnhanceError(null), 5000);
+    } finally {
+      setEnhancingDesc(prev => ({ ...prev, [vulnIndex]: false }));
+    }
+  };
+
+  const handleApplyResult = (editedResult) => {
+    if (resultData && resultData.vulnIndex !== null) {
+      handleVulnChange(resultData.vulnIndex, 'description', editedResult);
+      setShowResultModal(false);
+      setResultData(null);
+      setCurrentVulnIndex(null);
+    }
+  };
+
+  const handleCloseResultModal = () => {
+    setShowResultModal(false);
+    setResultData(null);
+    setCurrentVulnIndex(null);
+  };
+
+  // Create handlers object for child components
+  const handlers = {
+    addVulnArrayItem,
+    removeVulnArrayItem,
+    handleEndpointChange,
+    handleAttackChange,
+    handleImageUpload,
+    removeAttack
   };
 
   return (
@@ -500,203 +1322,245 @@ export function VulnerabilitiesSection({
         <button type="button" onClick={addVulnerability} className="btn btn-sm btn-secondary">+ Add Vulnerability</button>
       </div>
 
-      {formData.vulnerabilities.map((vuln, vi) => (
-        <div key={vi} className="vulnerability-section">
-          <div className="array-header">
-            <div className="vuln-header-left">
-              <button
-                type="button"
-                onClick={() => toggleCollapse(vi)}
-                className="btn-collapse"
-                title={collapsedVulns[vi] ? "Expand" : "Collapse"}
-              >
-                {collapsedVulns[vi] ? '▶' : '▼'}
-              </button>
-              <h3>Vulnerability {vi + 1}: {vuln.name || 'Untitled'}</h3>
-              {vuln.severity && (
-                <span className={`severity-badge severity-${vuln.severity.toLowerCase()}`}>
-                  {vuln.severity}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {vi > 0 && (
+      {enhanceError && (
+        <div className="ai-error-message">
+          ⚠️ {enhanceError}
+        </div>
+      )}
+
+      {/* AI Result Modal */}
+      {resultData && (
+        <AIResultModal
+          isOpen={showResultModal}
+          onClose={handleCloseResultModal}
+          onApply={handleApplyResult}
+          originalText={resultData.originalText}
+          aiResult={resultData.aiResult}
+        />
+      )}
+
+      {formData.vulnerabilities.map((vuln, vi) => {
+        const isEnhancingDesc = enhancingDesc[vi] || false;
+
+        return (
+          <div key={vi} className="vulnerability-section">
+            <div className="array-header">
+              <div className="vuln-header-left">
                 <button
                   type="button"
-                  onClick={() => moveVulnerability && moveVulnerability(vi, 'up')}
-                  className="btn btn-sm btn-secondary"
-                  title="Move up"
+                  onClick={() => toggleCollapse(vi)}
+                  className="btn-collapse"
+                  title={collapsedVulns[vi] ? "Expand" : "Collapse"}
                 >
-                  ▲
+                  {collapsedVulns[vi] ? '▶' : '▼'}
                 </button>
-              )}
-              {vi < formData.vulnerabilities.length - 1 && (
-                <button
-                  type="button"
-                  onClick={() => moveVulnerability && moveVulnerability(vi, 'down')}
-                  className="btn btn-sm btn-secondary"
-                  title="Move down"
-                >
-                  ▼
-                </button>
-              )}
-              <button 
-                type="button" 
-                onClick={() => handleSaveAsTemplate && handleSaveAsTemplate(vi)} 
-                className="btn btn-sm btn-success"
-                title="Save as template"
-              >
-                💾 Save as Template
-              </button>
-              <button 
-                type="button" 
-                onClick={() => handleLoadTemplate && handleLoadTemplate(vi)} 
-                className="btn btn-sm btn-info"
-                title="Load from template"
-              >
-                📋 Load Template
-              </button>
-              <button 
-                type="button" 
-                onClick={() => duplicateVulnerability && duplicateVulnerability(vi)} 
-                className="btn btn-sm btn-secondary"
-                title="Duplicate this vulnerability"
-              >
-                📋 Duplicate
-              </button>
-              {formData.vulnerabilities.length > 1 && (
-                <button 
-                  type="button" 
-                  onClick={() => handleRemoveVulnerability(vi)} 
-                  className="btn btn-sm btn-danger"
-                  title="Delete this vulnerability"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          </div>
-
-          {!collapsedVulns[vi] && (
-            <>
-              {/* name */}
-              <div className="form-group">
-                <label>Vulnerability Name *</label>
-                <input type="text" value={vuln.name} required
-                  onChange={(e) => handleVulnChange(vi, 'name', e.target.value)}
-                  placeholder="e.g., SQL Injection in Login Form" />
-              </div>
-
-              {/* CVSS Calculator */}
-              <CVSSCalculator
-                initialVector={vuln.cvss_vector}
-                initialScore={vuln.cvss_score}
-                onScoreUpdate={(data) => handleCVSSUpdate(vi, data)}
-              />
-
-              {/* severity + priority */}
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Severity</label>
-                  <input type="text" value={vuln.severity}
-                    onChange={(e) => handleVulnChange(vi, 'severity', e.target.value)}
-                    placeholder="e.g., Critica, Alta, Media, Bassa, Informativa" />
-                </div>
-                <div className="form-group">
-                  <label>Priority</label>
-                  <input type="text" value={vuln.priority}
-                    onChange={(e) => handleVulnChange(vi, 'priority', e.target.value)}
-                    placeholder="e.g., P1" />
-                </div>
-              </div>
-
-              {/* OWASP Category */}
-              <div className="form-group">
-                <label>OWASP Top 10 Category</label>
-                <select value={vuln.owasp_category || ''} 
-                  onChange={(e) => handleVulnChange(vi, 'owasp_category', e.target.value)}>
-                  <option value="">Select OWASP category</option>
-                  <option value="A01 - Broken Access Control">A01 - Broken Access Control</option>
-                  <option value="A02 - Cryptographic Failures">A02 - Cryptographic Failures</option>
-                  <option value="A03 - Injection">A03 - Injection</option>
-                  <option value="A04 - Insecure Design">A04 - Insecure Design</option>
-                  <option value="A05 - Security Misconfiguration">A05 - Security Misconfiguration</option>
-                  <option value="A06 - Vulnerable and Outdated Components">A06 - Vulnerable and Outdated Components</option>
-                  <option value="A07 - Identification and Authentication Failures">A07 - Identification and Authentication Failures</option>
-                  <option value="A08 - Software and Data Integrity Failures">A08 - Software and Data Integrity Failures</option>
-                  <option value="A09 - Security Logging and Monitoring Failures">A09 - Security Logging and Monitoring Failures</option>
-                  <option value="A10 - Server-Side Request Forgery">A10 - Server-Side Request Forgery</option>
-                  <option value="Other">Other (Custom Category)</option>
-                </select>
-                {vuln.owasp_category === 'Other' && (
-                  <input 
-                    type="text" 
-                    value={vuln.owasp_custom || ''}
-                    onChange={(e) => handleVulnChange(vi, 'owasp_custom', e.target.value)}
-                    placeholder="Enter custom category"
-                    style={{ marginTop: '8px' }}
-                  />
+                <h3>Vulnerability {vi + 1}: {vuln.name || 'Untitled'}</h3>
+                {vuln.severity && (
+                  <span className={`severity-badge severity-${vuln.severity.toLowerCase()}`}>
+                    {vuln.severity}
+                  </span>
                 )}
               </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {vi > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => moveVulnerability && moveVulnerability(vi, 'up')}
+                    className="btn btn-sm btn-secondary"
+                    title="Move up"
+                  >
+                    ▲
+                  </button>
+                )}
+                {vi < formData.vulnerabilities.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={() => moveVulnerability && moveVulnerability(vi, 'down')}
+                    className="btn btn-sm btn-secondary"
+                    title="Move down"
+                  >
+                    ▼
+                  </button>
+                )}
+                <button 
+                  type="button" 
+                  onClick={() => handleSaveAsTemplate && handleSaveAsTemplate(vi)} 
+                  className="btn btn-sm btn-success"
+                  title="Save as template"
+                >
+                  💾 Save as Template
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => handleLoadTemplate && handleLoadTemplate(vi)} 
+                  className="btn btn-sm btn-info"
+                  title="Load from template"
+                >
+                  📋 Load Template
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => duplicateVulnerability && duplicateVulnerability(vi)} 
+                  className="btn btn-sm btn-secondary"
+                  title="Duplicate this vulnerability"
+                >
+                  📋 Duplicate
+                </button>
+                {formData.vulnerabilities.length > 1 && (
+                  <button 
+                    type="button" 
+                    onClick={() => handleRemoveVulnerability(vi)} 
+                    className="btn btn-sm btn-danger"
+                    title="Delete this vulnerability"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
 
-              {/* CVSS */}
-              <div className="form-row">
+            {!collapsedVulns[vi] && (
+              <>
+                {/* name */}
                 <div className="form-group">
-                  <label>CVSS Score</label>
-                  <input type="text" value={vuln.cvss_score}
-                    onChange={(e) => handleVulnChange(vi, 'cvss_score', e.target.value)}
-                    placeholder="e.g., 9.8" />
+                  <label>Vulnerability Name *</label>
+                  <input type="text" value={vuln.name} required
+                    onChange={(e) => handleVulnChange(vi, 'name', e.target.value)}
+                    placeholder="e.g., SQL Injection in Login Form" />
                 </div>
+
+                {/* CVSS Calculator */}
+                <CVSSCalculator
+                  initialVector={vuln.cvss_vector}
+                  initialScore={vuln.cvss_score}
+                  onScoreUpdate={(data) => handleCVSSUpdate(vi, data)}
+                />
+
+                {/* severity + priority */}
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Severity</label>
+                    <input type="text" value={vuln.severity}
+                      onChange={(e) => handleVulnChange(vi, 'severity', e.target.value)}
+                      placeholder="e.g., Critica, Alta, Media, Bassa, Informativa" />
+                  </div>
+                  <div className="form-group">
+                    <label>Priority</label>
+                    <input type="text" value={vuln.priority}
+                      onChange={(e) => handleVulnChange(vi, 'priority', e.target.value)}
+                      placeholder="e.g., P1" />
+                  </div>
+                </div>
+
+                {/* OWASP Category */}
                 <div className="form-group">
-                  <label>CVSS Vector</label>
-                  <input type="text" value={vuln.cvss_vector}
-                    onChange={(e) => handleVulnChange(vi, 'cvss_vector', e.target.value)}
-                    placeholder="CVSS:3.1/AV:N/AC:L/…" />
+                  <label>OWASP Top 10 Category</label>
+                  <select value={vuln.owasp_category || ''} 
+                    onChange={(e) => handleVulnChange(vi, 'owasp_category', e.target.value)}>
+                    <option value="">Select OWASP category</option>
+                    <option value="A01 - Broken Access Control">A01 - Broken Access Control</option>
+                    <option value="A02 - Cryptographic Failures">A02 - Cryptographic Failures</option>
+                    <option value="A03 - Injection">A03 - Injection</option>
+                    <option value="A04 - Insecure Design">A04 - Insecure Design</option>
+                    <option value="A05 - Security Misconfiguration">A05 - Security Misconfiguration</option>
+                    <option value="A06 - Vulnerable and Outdated Components">A06 - Vulnerable and Outdated Components</option>
+                    <option value="A07 - Identification and Authentication Failures">A07 - Identification and Authentication Failures</option>
+                    <option value="A08 - Software and Data Integrity Failures">A08 - Software and Data Integrity Failures</option>
+                    <option value="A09 - Security Logging and Monitoring Failures">A09 - Security Logging and Monitoring Failures</option>
+                    <option value="A10 - Server-Side Request Forgery">A10 - Server-Side Request Forgery</option>
+                    <option value="Other">Other (Custom Category)</option>
+                  </select>
+                  {vuln.owasp_category === 'Other' && (
+                    <input 
+                      type="text" 
+                      value={vuln.owasp_custom || ''}
+                      onChange={(e) => handleVulnChange(vi, 'owasp_custom', e.target.value)}
+                      placeholder="Enter custom category"
+                      style={{ marginTop: '8px' }}
+                    />
+                  )}
                 </div>
-              </div>
 
-              {/* description */}
-              <div className="form-group">
-                <label>Description</label>
-                <textarea value={vuln.description} rows="4"
-                  onChange={(e) => handleVulnChange(vi, 'description', e.target.value)}
-                  placeholder="Detailed description of the vulnerability…" />
-              </div>
+                {/* CVSS */}
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>CVSS Score</label>
+                    <input type="text" value={vuln.cvss_score}
+                      onChange={(e) => handleVulnChange(vi, 'cvss_score', e.target.value)}
+                      placeholder="e.g., 9.8" />
+                  </div>
+                  <div className="form-group">
+                    <label>CVSS Vector</label>
+                    <input type="text" value={vuln.cvss_vector}
+                      onChange={(e) => handleVulnChange(vi, 'cvss_vector', e.target.value)}
+                      placeholder="CVSS:3.1/AV:N/AC:L/…" />
+                  </div>
+                </div>
 
-              {/* impact */}
-              <div className="form-group">
-                <label>Impact</label>
-                <textarea value={vuln.impact} rows="3"
-                  onChange={(e) => handleVulnChange(vi, 'impact', e.target.value)}
-                  placeholder="What could happen if exploited…" />
-              </div>
+                {/* description WITH AI ENHANCEMENT */}
+                <div className="form-group">
+                  <div className="form-group-header-with-ai">
+                    <label>Description</label>
+                    <div className="ai-controls-inline">
+                      <AIEnhanceButton
+                        text={vuln.description}
+                        onEnhance={(action, editedText, customPrompt, maskMap) => handleEnhanceDescription(vi, action, editedText, customPrompt, maskMap)}
+                        disabled={isEnhancingDesc}
+                        savedPrompts={savedPrompts}
+                        onSavePrompt={handleSavePrompt}
+                      />
+                      
+                      {isEnhancingDesc && (
+                        <span className="ai-enhancing-indicator">
+                          ✨ Enhancing...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <textarea 
+                    value={vuln.description} 
+                    rows="4"
+                    onChange={(e) => handleVulnChange(vi, 'description', e.target.value)}
+                    placeholder="Detailed description of the vulnerability…"
+                    disabled={isEnhancingDesc}
+                  />
+                </div>
 
-              {/* remediation */}
-              <div className="form-group">
-                <label>Remediation</label>
-                <textarea value={vuln.remediation} rows="4"
-                  onChange={(e) => handleVulnChange(vi, 'remediation', e.target.value)}
-                  placeholder="How to fix this vulnerability…" />
-              </div>
+                {/* impact */}
+                <div className="form-group">
+                  <label>Impact</label>
+                  <textarea value={vuln.impact} rows="3"
+                    onChange={(e) => handleVulnChange(vi, 'impact', e.target.value)}
+                    placeholder="What could happen if exploited…" />
+                </div>
 
-              {/* Internal Notes - not exported */}
-              <div className="form-group">
-                <label>Internal Notes <span style={{ fontSize: '0.85em', color: '#666' }}>(Not included in final report)</span></label>
-                <textarea value={vuln.internal_notes || ''} rows="3"
-                  onChange={(e) => handleVulnChange(vi, 'internal_notes', e.target.value)}
-                  placeholder="Personal notes, testing details, or any information for internal use only…"
-                  style={{ borderColor: '#ffa500', backgroundColor: '#fffbf0', color: '#333' }} />
-              </div>
+                {/* remediation */}
+                <div className="form-group">
+                  <label>Remediation</label>
+                  <textarea value={vuln.remediation} rows="4"
+                    onChange={(e) => handleVulnChange(vi, 'remediation', e.target.value)}
+                    placeholder="How to fix this vulnerability…" />
+                </div>
 
-              {/* Endpoints section */}
-              <EndpointsSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
-              
-              {/* Attacks section (text and images) */}
-              <AttacksSection vulnIndex={vi} vuln={vuln} handlers={handlers} reportId={reportId} />
-            </>
-          )}
-        </div>
-      ))}
+                {/* Internal Notes - not exported */}
+                <div className="form-group">
+                  <label>Internal Notes <span style={{ fontSize: '0.85em', color: '#666' }}>(Not included in final report)</span></label>
+                  <textarea value={vuln.internal_notes || ''} rows="3"
+                    onChange={(e) => handleVulnChange(vi, 'internal_notes', e.target.value)}
+                    placeholder="Personal notes, testing details, or any information for internal use only…"
+                    style={{ borderColor: '#ffa500', backgroundColor: '#fffbf0', color: '#333' }} />
+                </div>
+
+                {/* Endpoints section */}
+                <EndpointsSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
+                
+                {/* Attacks section (with AI enhancement for text blocks) */}
+                <AttacksSection vulnIndex={vi} vuln={vuln} handlers={handlers} reportId={reportId} />
+              </>
+            )}
+          </div>
+        );
+      })}
     </section>
   );
 }
