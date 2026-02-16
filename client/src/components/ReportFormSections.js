@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import CVSSCalculator from './CVSSCalculator';
 import TemplateSelector from './TemplateSelector';
 import axios from 'axios';
@@ -85,12 +86,16 @@ function unmaskText(maskedText, maskMap) {
 /**
  * Modal showing AI result with side-by-side comparison
  */
+/**
+ * AI Result Modal - matches TemplateManager style
+ */
 function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult }) {
   const [editedResult, setEditedResult] = useState(aiResult);
 
-  // Update edited result when aiResult prop changes
   React.useEffect(() => {
-    setEditedResult(aiResult);
+    if (aiResult) {
+      setEditedResult(aiResult);
+    }
   }, [aiResult]);
 
   if (!isOpen) return null;
@@ -99,63 +104,49 @@ function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult }) {
     onApply(editedResult);
   };
 
-  return (
-    <div className="ai-modal-overlay" onClick={onClose}>
-      <div className="ai-modal-content ai-result-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="ai-modal-header">
-          <h3>✨ AI Enhancement Result</h3>
-          <button className="ai-modal-close" onClick={onClose}>×</button>
+  return ReactDOM.createPortal(
+    <div className="template-manager-overlay" onClick={onClose}>
+      <div className="ai-enhancement-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="template-manager-header">
+          <h2>✨ AI Enhancement Result</h2>
+          <button onClick={onClose} className="btn btn-sm btn-secondary">✕ Close</button>
         </div>
         
-        <div className="ai-modal-body">
-          <div className="ai-result-comparison">
-            {/* Left side - Original */}
-            <div className="ai-result-column">
-              <label className="ai-result-column-label">
-                <span className="ai-result-icon">📄</span>
-                Original Text
-              </label>
-              <div className="ai-result-text-box ai-result-original">
-                {originalText}
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="ai-result-divider">
-              <div className="ai-result-arrow">→</div>
-            </div>
-
-            {/* Right side - AI Result (Editable) */}
-            <div className="ai-result-column">
-              <label className="ai-result-column-label">
-                <span className="ai-result-icon">✨</span>
-                AI Enhanced
-                <span className="ai-editable-label">✏️ Editable</span>
-              </label>
-              <textarea
-                className="ai-result-text-box ai-result-enhanced ai-modal-editable"
-                value={editedResult}
-                onChange={(e) => setEditedResult(e.target.value)}
-                rows="12"
-              />
+        <div className="ai-modal-content-wrapper">
+          <div className="ai-modal-field">
+            <label className="ai-modal-field-label">Original:</label>
+            <div className="ai-modal-readonly-text">
+              {originalText}
             </div>
           </div>
 
-          <div className="ai-edit-hint">
-            💡 You can edit the AI result above before applying it to your report
+          <div className="ai-modal-field">
+            <label className="ai-modal-field-label">Enhanced (editable):</label>
+            <textarea
+              className="ai-modal-textarea"
+              value={editedResult}
+              onChange={(e) => setEditedResult(e.target.value)}
+              rows="12"
+              placeholder="AI enhanced text..."
+            />
+          </div>
+
+          <div className="ai-modal-info-box">
+            💡 You can edit the enhanced text before applying it
           </div>
         </div>
 
         <div className="ai-modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>
-            Discard Changes
+            Discard
           </button>
           <button className="btn btn-primary" onClick={handleApply}>
-            Apply Changes
+            Apply
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -166,10 +157,12 @@ function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult }) {
 /**
  * Modal showing masked text preview before sending to AI
  */
+/**
+ * AI Preview Modal - matches TemplateManager style
+ */
 function AIPreviewModal({ isOpen, onClose, onConfirm, originalText, maskedText, detectedTypes, action, customPrompt }) {
   const [editedMaskedText, setEditedMaskedText] = useState(maskedText);
 
-  // Update edited text when maskedText prop changes
   React.useEffect(() => {
     setEditedMaskedText(maskedText);
   }, [maskedText]);
@@ -183,105 +176,71 @@ function AIPreviewModal({ isOpen, onClose, onConfirm, originalText, maskedText, 
     custom: 'Custom Prompt'
   };
 
-  const typeLabels = {
-    ipv4: 'IP Addresses (IPv4)',
-    ipv6: 'IP Addresses (IPv6)',
-    email: 'Email Addresses',
-    url: 'URLs',
-    creditCard: 'Credit Card Numbers',
-    phone: 'Phone Numbers',
-    ssn: 'Social Security Numbers',
-    apiKey: 'API Keys/Tokens',
-    awsAccessKey: 'AWS Access Keys',
-    awsSecretKey: 'AWS Secret Keys',
-    privateKey: 'Private Keys',
-    password: 'Passwords',
-    jwt: 'JWT Tokens'
-  };
-
   const handleConfirm = () => {
     onConfirm(editedMaskedText, customPrompt);
   };
 
-  return (
-    <div className="ai-modal-overlay" onClick={onClose}>
-      <div className="ai-modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="ai-modal-header">
-          <h3>🔒 AI Enhancement Preview</h3>
-          <button className="ai-modal-close" onClick={onClose}>×</button>
+  return ReactDOM.createPortal(
+    <div className="template-manager-overlay" onClick={onClose}>
+      <div className="ai-enhancement-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="template-manager-header">
+          <h2>🔒 Confirm AI Enhancement</h2>
+          <button onClick={onClose} className="btn btn-sm btn-secondary">✕ Close</button>
         </div>
         
-        <div className="ai-modal-body">
-          <div className="ai-modal-action">
-            <strong>Action:</strong> {actionLabels[action]}
+        <div className="ai-modal-content-wrapper">
+          <div className="ai-modal-field">
+            <label className="ai-modal-field-label">Action:</label>
+            <div className="ai-modal-field-value">{actionLabels[action] || action}</div>
           </div>
 
-          {customPrompt && (
-            <div className="ai-modal-custom-prompt">
-              <strong>Custom Instruction:</strong>
-              <div className="ai-custom-prompt-display">{customPrompt}</div>
+          {action === 'custom' && customPrompt && (
+            <div className="ai-modal-field">
+              <label className="ai-modal-field-label">Custom Instruction:</label>
+              <div className="ai-modal-field-value">{customPrompt}</div>
             </div>
           )}
 
-          {detectedTypes.length > 0 && (
-            <div className="ai-modal-security-notice">
-              <div className="ai-modal-notice-header">
-                <span className="ai-modal-notice-icon">⚠️</span>
-                <strong>Sensitive Data Detected</strong>
-              </div>
-              <p>The following types of sensitive information have been masked:</p>
-              <ul className="ai-modal-detected-list">
-                {detectedTypes.map(type => (
-                  <li key={type}>{typeLabels[type] || type}</li>
-                ))}
-              </ul>
-              <p className="ai-modal-notice-footer">
-                These will be automatically restored in the enhanced text.
-              </p>
+          <div className="ai-modal-field">
+            <label className="ai-modal-field-label">Original text:</label>
+            <div className="ai-modal-readonly-text">
+              {originalText}
+            </div>
+          </div>
+
+          <div className="ai-modal-field">
+            <label className="ai-modal-field-label">Text to send to AI (editable):</label>
+            <textarea
+              className="ai-modal-textarea"
+              value={editedMaskedText}
+              onChange={(e) => setEditedMaskedText(e.target.value)}
+              rows="10"
+              placeholder="Enter text to enhance..."
+            />
+          </div>
+
+          {detectedTypes && detectedTypes.length > 0 && (
+            <div className="ai-modal-info-box">
+              ℹ️ Sensitive data detected and masked: {detectedTypes.length} type(s)
             </div>
           )}
-
-          <div className="ai-modal-text-preview">
-            <div className="ai-modal-text-section">
-              <label>Original Text:</label>
-              <div className="ai-modal-text-box ai-modal-original">
-                {originalText}
-              </div>
-            </div>
-
-            <div className="ai-modal-text-section">
-              <label>
-                Text to Send to AI: 
-                <span className="ai-editable-label">✏️ Editable</span>
-              </label>
-              <textarea
-                className="ai-modal-text-box ai-modal-masked ai-modal-editable"
-                value={editedMaskedText}
-                onChange={(e) => setEditedMaskedText(e.target.value)}
-                rows="8"
-              />
-              <div className="ai-edit-hint">
-                💡 You can edit the text above before sending to AI
-              </div>
-            </div>
-          </div>
-
-          <div className="ai-modal-info">
-            <strong>Note:</strong> Only the edited version will be sent to the AI service (Groq). 
-            After enhancement, all sensitive data tokens will be automatically restored to their original values.
-          </div>
         </div>
 
         <div className="ai-modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={handleConfirm}>
-            Confirm & Enhance
+          <button 
+            className="btn btn-primary" 
+            onClick={handleConfirm}
+            disabled={!editedMaskedText.trim()}
+          >
+            Send to AI
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -861,7 +820,15 @@ function EndpointsSection({ vulnIndex, vuln, handlers }) {
 // ============================================================================
 
 /** Static: Basic fields */
-export function StaticFieldsSection({ formData, handleChange, handleTemplateChange }) {
+export function StaticFieldsSection({ 
+  formData, 
+  handleChange, 
+  handleTemplateChange,
+  onEnhanceExecutiveSummary,
+  isEnhancingExecutiveSummary,
+  savedPrompts,
+  onSavePrompt
+}) {
   return (
     <section className="form-section">
       <h2>Basic Information</h2>
@@ -918,9 +885,32 @@ export function StaticFieldsSection({ formData, handleChange, handleTemplateChan
       </div>
 
       <div className="form-group">
-        <label>Executive Summary</label>
-        <textarea name="executive_summary" value={formData.executive_summary} rows="6"
-          onChange={handleChange} placeholder="High-level overview of the assessment results…" />
+        <div className="form-group-header-with-ai">
+          <label>Executive Summary</label>
+          <div className="ai-controls-inline">
+            <AIEnhanceButton
+              text={formData.executive_summary}
+              onEnhance={onEnhanceExecutiveSummary}
+              disabled={isEnhancingExecutiveSummary}
+              savedPrompts={savedPrompts}
+              onSavePrompt={onSavePrompt}
+            />
+            
+            {isEnhancingExecutiveSummary && (
+              <span className="ai-enhancing-indicator">
+                ✨ Enhancing...
+              </span>
+            )}
+          </div>
+        </div>
+        <textarea 
+          name="executive_summary" 
+          value={formData.executive_summary} 
+          rows="6"
+          onChange={handleChange} 
+          placeholder="High-level overview of the assessment results…"
+          disabled={isEnhancingExecutiveSummary}
+        />
       </div>
 
       <div className="form-row">
@@ -1189,13 +1179,16 @@ export function VulnerabilitiesSection({
 }) {
   const [collapsedVulns, setCollapsedVulns] = useState({});
   
-  // AI enhancement state for descriptions
+  // AI enhancement state for descriptions, impact, and remediation
   const [enhancingDesc, setEnhancingDesc] = useState({});
+  const [enhancingImpact, setEnhancingImpact] = useState({});
+  const [enhancingRemediation, setEnhancingRemediation] = useState({});
   const [enhanceError, setEnhanceError] = useState(null);
   const [savedPrompts, setSavedPrompts] = useState([]);
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultData, setResultData] = useState(null);
   const [currentVulnIndex, setCurrentVulnIndex] = useState(null);
+  const [currentFieldType, setCurrentFieldType] = useState(null); // 'description', 'impact', 'remediation'
 
   const toggleCollapse = (index) => {
     setCollapsedVulns(prev => ({
@@ -1239,17 +1232,16 @@ export function VulnerabilitiesSection({
     setEnhancingDesc(prev => ({ ...prev, [vulnIndex]: true }));
     setEnhanceError(null);
     setCurrentVulnIndex(vulnIndex);
+    setCurrentFieldType('description');
 
     try {
       const token = localStorage.getItem('token');
       
-      // Prepare request body based on action type
       const requestBody = {
         text: editedMaskedText,
         action: action
       };
 
-      // Add custom prompt if provided
       if (action === 'custom' && customPrompt) {
         requestBody.customPrompt = customPrompt;
       }
@@ -1266,15 +1258,16 @@ export function VulnerabilitiesSection({
       );
 
       if (response.data.success) {
-        // Unmask the AI result
         const unmaskedResult = unmaskText(response.data.enhanced, maskMap);
         
-        // Show result modal instead of directly applying
-        setResultData({
+        const newResultData = {
           originalText: formData.vulnerabilities[vulnIndex].description,
           aiResult: unmaskedResult,
-          vulnIndex: vulnIndex
-        });
+          vulnIndex: vulnIndex,
+          fieldType: 'description'
+        };
+        
+        setResultData(newResultData);
         setShowResultModal(true);
       }
     } catch (error) {
@@ -1290,12 +1283,119 @@ export function VulnerabilitiesSection({
     }
   };
 
+  const handleEnhanceImpact = async (vulnIndex, action, editedMaskedText, customPrompt, maskMap) => {
+    setEnhancingImpact(prev => ({ ...prev, [vulnIndex]: true }));
+    setEnhanceError(null);
+    setCurrentVulnIndex(vulnIndex);
+    setCurrentFieldType('impact');
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const requestBody = {
+        text: editedMaskedText,
+        action: action
+      };
+
+      if (action === 'custom' && customPrompt) {
+        requestBody.customPrompt = customPrompt;
+      }
+
+      const response = await axios.post(
+        '/api/ai/enhance-text',
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        const unmaskedResult = unmaskText(response.data.enhanced, maskMap);
+        
+        setResultData({
+          originalText: formData.vulnerabilities[vulnIndex].impact,
+          aiResult: unmaskedResult,
+          vulnIndex: vulnIndex,
+          fieldType: 'impact'
+        });
+        setShowResultModal(true);
+      }
+    } catch (error) {
+      console.error('Enhancement error:', error);
+      setEnhanceError(
+        error.response?.data?.message || 
+        'Failed to enhance text. Please try again.'
+      );
+      
+      setTimeout(() => setEnhanceError(null), 5000);
+    } finally {
+      setEnhancingImpact(prev => ({ ...prev, [vulnIndex]: false }));
+    }
+  };
+
+  const handleEnhanceRemediation = async (vulnIndex, action, editedMaskedText, customPrompt, maskMap) => {
+    setEnhancingRemediation(prev => ({ ...prev, [vulnIndex]: true }));
+    setEnhanceError(null);
+    setCurrentVulnIndex(vulnIndex);
+    setCurrentFieldType('remediation');
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const requestBody = {
+        text: editedMaskedText,
+        action: action
+      };
+
+      if (action === 'custom' && customPrompt) {
+        requestBody.customPrompt = customPrompt;
+      }
+
+      const response = await axios.post(
+        '/api/ai/enhance-text',
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        const unmaskedResult = unmaskText(response.data.enhanced, maskMap);
+        
+        setResultData({
+          originalText: formData.vulnerabilities[vulnIndex].remediation,
+          aiResult: unmaskedResult,
+          vulnIndex: vulnIndex,
+          fieldType: 'remediation'
+        });
+        setShowResultModal(true);
+      }
+    } catch (error) {
+      console.error('Enhancement error:', error);
+      setEnhanceError(
+        error.response?.data?.message || 
+        'Failed to enhance text. Please try again.'
+      );
+      
+      setTimeout(() => setEnhanceError(null), 5000);
+    } finally {
+      setEnhancingRemediation(prev => ({ ...prev, [vulnIndex]: false }));
+    }
+  };
+
   const handleApplyResult = (editedResult) => {
-    if (resultData && resultData.vulnIndex !== null) {
-      handleVulnChange(resultData.vulnIndex, 'description', editedResult);
+    if (resultData && resultData.vulnIndex !== null && resultData.fieldType) {
+      handleVulnChange(resultData.vulnIndex, resultData.fieldType, editedResult);
       setShowResultModal(false);
       setResultData(null);
       setCurrentVulnIndex(null);
+      setCurrentFieldType(null);
     }
   };
 
@@ -1526,20 +1626,62 @@ export function VulnerabilitiesSection({
                   />
                 </div>
 
-                {/* impact */}
+                {/* impact WITH AI ENHANCEMENT */}
                 <div className="form-group">
-                  <label>Impact</label>
-                  <textarea value={vuln.impact} rows="3"
+                  <div className="form-group-header-with-ai">
+                    <label>Impact</label>
+                    <div className="ai-controls-inline">
+                      <AIEnhanceButton
+                        text={vuln.impact}
+                        onEnhance={(action, editedText, customPrompt, maskMap) => handleEnhanceImpact(vi, action, editedText, customPrompt, maskMap)}
+                        disabled={enhancingImpact[vi]}
+                        savedPrompts={savedPrompts}
+                        onSavePrompt={handleSavePrompt}
+                      />
+                      
+                      {enhancingImpact[vi] && (
+                        <span className="ai-enhancing-indicator">
+                          ✨ Enhancing...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <textarea 
+                    value={vuln.impact} 
+                    rows="3"
                     onChange={(e) => handleVulnChange(vi, 'impact', e.target.value)}
-                    placeholder="What could happen if exploited…" />
+                    placeholder="What could happen if exploited…"
+                    disabled={enhancingImpact[vi]}
+                  />
                 </div>
 
-                {/* remediation */}
+                {/* remediation WITH AI ENHANCEMENT */}
                 <div className="form-group">
-                  <label>Remediation</label>
-                  <textarea value={vuln.remediation} rows="4"
+                  <div className="form-group-header-with-ai">
+                    <label>Remediation</label>
+                    <div className="ai-controls-inline">
+                      <AIEnhanceButton
+                        text={vuln.remediation}
+                        onEnhance={(action, editedText, customPrompt, maskMap) => handleEnhanceRemediation(vi, action, editedText, customPrompt, maskMap)}
+                        disabled={enhancingRemediation[vi]}
+                        savedPrompts={savedPrompts}
+                        onSavePrompt={handleSavePrompt}
+                      />
+                      
+                      {enhancingRemediation[vi] && (
+                        <span className="ai-enhancing-indicator">
+                          ✨ Enhancing...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <textarea 
+                    value={vuln.remediation} 
+                    rows="4"
                     onChange={(e) => handleVulnChange(vi, 'remediation', e.target.value)}
-                    placeholder="How to fix this vulnerability…" />
+                    placeholder="How to fix this vulnerability…"
+                    disabled={enhancingRemediation[vi]}
+                  />
                 </div>
 
                 {/* Internal Notes - not exported */}

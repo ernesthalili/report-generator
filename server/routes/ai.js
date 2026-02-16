@@ -332,7 +332,6 @@ router.post('/enhance-text', protect, async (req, res) => {
       });
     }
 
-    // If action is custom, customPrompt is required
     if (action === 'custom' && (!customPrompt || customPrompt.trim().length === 0)) {
       return res.status(400).json({
         success: false,
@@ -347,7 +346,6 @@ router.post('/enhance-text', protect, async (req, res) => {
       });
     }
 
-    // Validate custom prompt length if provided
     if (customPrompt && customPrompt.length > 1000) {
       return res.status(400).json({
         success: false,
@@ -364,7 +362,7 @@ router.post('/enhance-text', protect, async (req, res) => {
       });
     }
     
-    // Check cache first (include customPrompt in cache key for custom actions)
+    // Check cache first
     const cacheKey = getCacheKey(text + (customPrompt || ''), action);
     const cachedResult = getFromCache(cacheKey);
     
@@ -378,17 +376,13 @@ router.post('/enhance-text', protect, async (req, res) => {
       });
     }
     
-    // Frontend now sends pre-masked and pre-edited text
-    // We don't need to mask again, just enhance and return
-    // The frontend will handle unmasking since it has the mask map
-    
-    // Enhance with Groq AI (pass customPrompt if provided)
+    // Enhance with Groq AI
     const enhancedText = await enhanceWithGroq(text, action, customPrompt);
     
     // Save to cache
     saveToCache(cacheKey, enhancedText);
     
-    // Return result (no masking info since frontend handles it)
+    // Return result
     res.json({
       success: true,
       enhanced: enhancedText,

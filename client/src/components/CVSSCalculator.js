@@ -16,24 +16,36 @@ const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }
   const [score, setScore] = useState(0);
   const [severity, setSeverity] = useState('');
   const isInitializing = useRef(true);
-  const hasInitialized = useRef(false);
+  const previousVector = useRef('');
 
-  // Parse initial CVSS vector if provided - ONLY ONCE
+  // Parse initial CVSS vector whenever it changes
   useEffect(() => {
-    if (initialVector && initialVector.startsWith('CVSS:3.1/') && !hasInitialized.current) {
-      const vectorParts = initialVector.replace('CVSS:3.1/', '').split('/');
+    // Support multiple CVSS vector formats
+    if (initialVector && initialVector.length > 0 && initialVector !== previousVector.current) {
+      previousVector.current = initialVector;
+      
+      // Extract the vector part - handle different formats:
+      // Format 1: "CVSS:3.1/AV:N/AC:L/..."
+      // Format 2: "CVSS 3.1: /AV:N/AC:L/..."
+      // Format 3: "/AV:N/AC:L/..." (just the vector part)
+      let vectorString = initialVector;
+      
+      // Remove "CVSS:3.1/" or "CVSS 3.1: /" prefix if present
+      vectorString = vectorString.replace(/^CVSS[:\s]*3\.1[:\s]*\/?/i, '');
+      
+      // Now parse the vector parts
+      const vectorParts = vectorString.split('/').filter(part => part.trim().length > 0);
       const parsedMetrics = {};
       
       vectorParts.forEach(part => {
         const [key, value] = part.split(':');
-        if (key && value) {
-          parsedMetrics[key] = value;
+        if (key && value && key.trim() && value.trim()) {
+          parsedMetrics[key.trim()] = value.trim();
         }
       });
       
       if (Object.keys(parsedMetrics).length > 0) {
         setMetrics(prev => ({ ...prev, ...parsedMetrics }));
-        hasInitialized.current = true;
       }
     }
     
@@ -182,8 +194,8 @@ const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }
     setScore(newScore);
     setSeverity(newSeverity);
 
-    // Generate CVSS vector string
-    const vector = `CVSS 3.1: /AV:${metrics.AV}/AC:${metrics.AC}/PR:${metrics.PR}/UI:${metrics.UI}/S:${metrics.S}/C:${metrics.C}/I:${metrics.I}/A:${metrics.A}`;
+    // Generate CVSS vector string in standard format
+    const vector = `CVSS:3.1/AV:${metrics.AV}/AC:${metrics.AC}/PR:${metrics.PR}/UI:${metrics.UI}/S:${metrics.S}/C:${metrics.C}/I:${metrics.I}/A:${metrics.A}`;
     
     // Only notify parent component if we're not initializing
     // This prevents overwriting existing values when editing a report
@@ -243,8 +255,8 @@ const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }
       </div>
 
       <div className="cvss-vector">
-        <label>CVSS Vector 3.1: </label>
-        <code>/AV:{metrics.AV}/AC:{metrics.AC}/PR:{metrics.PR}/UI:{metrics.UI}/S:{metrics.S}/C:{metrics.C}/I:{metrics.I}/A:{metrics.A}</code>
+        <label>CVSS Vector: </label>
+        <code>CVSS:3.1/AV:{metrics.AV}/AC:{metrics.AC}/PR:{metrics.PR}/UI:{metrics.UI}/S:{metrics.S}/C:{metrics.C}/I:{metrics.I}/A:{metrics.A}</code>
       </div>
     </div>
   );

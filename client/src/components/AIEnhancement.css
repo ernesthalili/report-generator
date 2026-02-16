@@ -769,3 +769,218 @@
 .ai-saved-prompts-list::-webkit-scrollbar-thumb:hover {
   background: #a0aec0;
 }
+
+/* ============================================================================
+   SIMPLIFIED POPUP STYLES (window.confirm style)
+   ============================================================================ */
+
+/* Popup Overlay */
+.ai-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+/* Popup Container */
+.ai-popup-container {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Popup Header */
+.ai-popup-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #ddd;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  background: #f5f5f5;
+}
+
+/* Popup Body */
+.ai-popup-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Popup Field */
+.ai-popup-field {
+  margin-bottom: 16px;
+}
+
+.ai-popup-field:last-child {
+  margin-bottom: 0;
+}
+
+.ai-popup-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.ai-popup-value {
+  font-size: 14px;
+  color: #555;
+  padding: 8px;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+}
+
+/* Popup Textarea */
+.ai-popup-textarea {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  resize: vertical;
+  min-height: 120px;
+  box-sizing: border-box;
+}
+
+.ai-popup-textarea:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+/* Popup Read-only Display */
+.ai-popup-readonly {
+  padding: 10px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #555;
+}
+
+/* Popup Info */
+.ai-popup-info {
+  padding: 10px;
+  background: #f0f8ff;
+  border: 1px solid #b8d4f1;
+  border-radius: 3px;
+  font-size: 13px;
+  color: #1a5490;
+  margin-top: 16px;
+}
+
+/* Popup Footer */
+.ai-popup-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #f5f5f5;
+}
+
+/* Popup Buttons */
+.ai-popup-btn {
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-popup-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.ai-popup-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.ai-popup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-popup-btn-primary {
+  background: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.ai-popup-btn-primary:hover:not(:disabled) {
+  background: #357abd;
+  border-color: #357abd;
+  box-shadow: 0 2px 4px rgba(74, 144, 226, 0.3);
+}
+
+.ai-popup-btn-secondary {
+  background: white;
+  color: #555;
+  border-color: #ccc;
+}
+
+.ai-popup-btn-secondary:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+/* Scrollbar for popup elements */
+.ai-popup-readonly::-webkit-scrollbar,
+.ai-popup-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ai-popup-readonly::-webkit-scrollbar-track,
+.ai-popup-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.ai-popup-readonly::-webkit-scrollbar-thumb,
+.ai-popup-body::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.ai-popup-readonly::-webkit-scrollbar-thumb:hover,
+.ai-popup-body::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ai-popup-container {
+    max-width: 95%;
+  }
+  
+  .ai-popup-footer {
+    flex-direction: column-reverse;
+  }
+  
+  .ai-popup-btn {
+    width: 100%;
+  }
+}

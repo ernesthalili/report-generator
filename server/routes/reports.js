@@ -657,9 +657,38 @@ router.post('/:id/generate', protect, async (req, res) => {
       compression: 'DEFLATE'
     });
 
+    // Generate filename in format: [Client name] - Report Tecnico - WAPT - [report name] - [Month] - [Year]
+    const generateFilename = (report) => {
+      const italianMonths = [
+        'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+        'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
+      ];
+      
+      const clientName = report.client_name || 'Client';
+      const reportName = report.projectName || 'Report';
+      
+      // Get month and year from approver_date
+      let month = '';
+      let year = '';
+      if (report.approver_date) {
+        const date = new Date(report.approver_date);
+        month = italianMonths[date.getMonth()];
+        year = date.getFullYear();
+      }
+      
+      // Build filename parts
+      const parts = [clientName, 'Report Tecnico', 'WAPT', reportName];
+      if (month) parts.push(month);
+      if (year) parts.push(year);
+      
+      return parts.join(' - ') + '.docx';
+    };
+
+    const filename = generateFilename(report);
+
     // Set headers and send file
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="${report.projectName.replace(/[^a-z0-9]/gi, '_')}_report.docx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.send(buf);
 
   } catch (error) {

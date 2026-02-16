@@ -52,10 +52,22 @@ function Dashboard() {
         responseType: 'blob'
       });
       
+      // Extract filename from Content-Disposition header
+      let filename = `${projectName.replace(/[^a-z0-9]/gi, '_')}_report.docx`; // fallback
+      const contentDisposition = res.headers['content-disposition'];
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/);
+        if (filenameMatch && filenameMatch[3]) {
+          filename = decodeURIComponent(filenameMatch[3]);
+        } else if (filenameMatch && filenameMatch[2]) {
+          filename = decodeURIComponent(filenameMatch[2]);
+        }
+      }
+      
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${projectName.replace(/[^a-z0-9]/gi, '_')}_report.docx`);
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
