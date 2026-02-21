@@ -114,6 +114,13 @@ const reportSchema = new mongoose.Schema({
   testers:         [testerSchema],          // NEW: Testers array
   vulnerabilities: [vulnerabilitySchema],   // VULNERABILITY# …
 
+  // ---- Status ----
+  status: {
+    type: String,
+    enum: ['Editing', 'Finished'],
+    default: 'Editing'
+  },
+
   // ---------------------------------------------------------------------------
   // housekeeping
   // ---------------------------------------------------------------------------

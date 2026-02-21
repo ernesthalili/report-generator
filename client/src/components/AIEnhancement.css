@@ -585,36 +585,73 @@
    ============================================================================ */
 
 .ai-custom-prompt-input {
-  margin-top: 12px;
-  padding: 12px;
-  background: #f8f9fa;
-  border: 1px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  padding: 10px 14px 12px;
+  background: #0d1117;
+  border: 1px solid rgba(161, 0, 255, 0.4);
   border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: cpSlideIn 0.18s ease;
+}
+
+@keyframes cpSlideIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ai-custom-prompt-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #A100FF;
+  user-select: none;
 }
 
 .ai-custom-prompt-input textarea {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #cbd5e0;
-  border-radius: 4px;
-  font-size: 14px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 5px;
+  font-size: 13px;
   font-family: inherit;
-  resize: vertical;
-  min-height: 80px;
+  color: #e6edf3;
+  resize: none;
+  min-height: 40px;
+  max-height: 200px;
+  overflow-y: auto;
+  line-height: 1.55;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  field-sizing: content;
+}
+
+.ai-custom-prompt-input textarea::placeholder {
+  color: #484f58;
+  font-style: italic;
 }
 
 .ai-custom-prompt-input textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #A100FF;
+  box-shadow: 0 0 0 2px rgba(161, 0, 255, 0.25);
 }
 
 .ai-custom-prompt-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 8px;
-  margin-top: 8px;
 }
+
+
 
 
 

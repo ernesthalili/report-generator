@@ -16,7 +16,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Set axios default headers
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -40,16 +39,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Register — no longer auto-logs in. Returns success + message so the UI
+  // can show the "check your email" screen.
   const register = async (username, email, password) => {
     try {
       setError(null);
       const res = await axios.post('/api/auth/register', { username, email, password });
-      
-      localStorage.setItem('token', res.data.token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-      setUser(res.data.user);
-      
-      return { success: true };
+      return { success: true, message: res.data.message };
     } catch (err) {
       const message = err.response?.data?.message || 'Registration failed';
       setError(message);
@@ -61,16 +57,17 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const res = await axios.post('/api/auth/login', { email, password });
-      
+
       localStorage.setItem('token', res.data.token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
       setUser(res.data.user);
-      
+
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.message || 'Login failed';
+      const needsVerification = err.response?.data?.needsVerification || false;
       setError(message);
-      return { success: false, error: message };
+      return { success: false, error: message, needsVerification };
     }
   };
 

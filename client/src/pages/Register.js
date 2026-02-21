@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Copyright from '../components/Copyright';
 import './Auth.css';
@@ -10,10 +10,10 @@ function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const { register } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,24 +23,46 @@ function Register() {
       setError('Passwords do not match');
       return;
     }
-
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
-
     const result = await register(username, email, password);
-    
+
     if (result.success) {
-      navigate('/dashboard');
+      setSuccess(result.message || 'Registration successful! Check your email to verify your account.');
     } else {
       setError(result.error);
     }
-    
+
     setLoading(false);
   };
+
+  if (success) {
+    return (
+      <div className="auth-container">
+        <div className="auth-box">
+          <div className="auth-header">
+            <h1>Report Generator</h1>
+            <h2>Check Your Email</h2>
+          </div>
+          <div className="alert alert-success">{success}</div>
+          <p style={{ color: '#aaa', fontSize: '0.9rem', textAlign: 'center', marginTop: '1rem' }}>
+            Didn't receive it?{' '}
+            <Link to="/resend-verification" style={{ color: '#00FFFF' }}>
+              Resend verification email
+            </Link>
+          </p>
+          <div className="auth-footer" style={{ marginTop: '1.5rem' }}>
+            <p>Already verified? <Link to="/login">Login here</Link></p>
+          </div>
+          <Copyright />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-container">
@@ -112,7 +134,6 @@ function Register() {
           <p>Already have an account? <Link to="/login">Login here</Link></p>
         </div>
 
-        {/* Copyright Footer - Inside Panel */}
         <Copyright />
       </div>
     </div>

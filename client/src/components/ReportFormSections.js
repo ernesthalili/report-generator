@@ -4,6 +4,7 @@ import CVSSCalculator from './CVSSCalculator';
 import TemplateSelector from './TemplateSelector';
 import axios from 'axios';
 import { cweIdToRef, fetchCweTitle } from '../hooks/useReportForm';
+import './AIEnhancement.css';
 
 // ============================================================================
 // AI ENHANCEMENT - UTILITY FUNCTIONS (Client-side masking)
@@ -411,19 +412,24 @@ function AIEnhanceButton({ text, onEnhance, disabled, savedPrompts, onSavePrompt
         )}
       </div>
 
-      {/* Custom prompt inline input */}
+      {/* Custom prompt panel — between toolbar and field textarea */}
       {showCustomInput && (
         <div className="ai-custom-prompt-input">
+          <span className="ai-custom-prompt-label">✏️ Custom instruction</span>
           <textarea
             value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
+            onChange={(e) => {
+              setCustomPrompt(e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+            }}
             placeholder="e.g. 'Make this more concise' or 'Add OWASP references'"
-            rows="2"
+            rows="1"
             autoFocus
           />
           <div className="ai-custom-prompt-actions">
             <button type="button" className="btn btn-sm btn-secondary" onClick={handleCancelCustom}>Cancel</button>
-            <button type="button" className="btn btn-sm btn-primary"   onClick={handleCustomSubmit} disabled={!customPrompt.trim()}>Continue</button>
+            <button type="button" className="btn btn-sm btn-primary" onClick={handleCustomSubmit} disabled={!customPrompt.trim()}>Continue</button>
           </div>
         </div>
       )}

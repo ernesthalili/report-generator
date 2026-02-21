@@ -1,296 +1,268 @@
-# PenTest Reporter - Full Stack Application
-## Complete Setup Guide
+# Report Generator
 
-A full-stack web application for creating penetration testing reports using your custom Word template.
+A full-stack web application for creating, managing, and exporting professional penetration testing reports. Built with React, Node.js, Express, and MongoDB.
+
+---
 
 ## 🏗️ Architecture
 
-- **Frontend**: React (Single Page Application)
-- **Backend**: Node.js + Express
-- **Database**: MongoDB
-- **Authentication**: JWT tokens
-- **Template Engine**: docxtemplater (handles [TEXT] placeholders)
+| Layer | Technology |
+|---|---|
+| Frontend | React 18 (SPA) |
+| Backend | Node.js + Express |
+| Database | MongoDB + Mongoose |
+| Auth | JWT tokens + email verification |
+| Report engine | docxtemplater + custom CrossReference module |
+| AI assistance | Groq API (text enhancement) |
+| Email | Resend / Nodemailer |
+
+---
 
 ## 📋 Prerequisites
 
-Before you begin, ensure you have installed:
+- **Node.js** v14 or higher → https://nodejs.org/
+- **MongoDB** v4.4 or higher → https://www.mongodb.com/try/download/community  
+  (or via Docker: `docker run -d -p 27017:27017 --name mongodb mongo:latest`)
+- **npm** (bundled with Node.js)
 
-1. **Node.js** (v14 or higher)
-   - Download: https://nodejs.org/
-   - Verify: `node --version`
+---
 
-2. **MongoDB** (v4.4 or higher)
-   - Download: https://www.mongodb.com/try/download/community
-   - Or use Docker: `docker run -d -p 27017:27017 --name mongodb mongo:latest`
-   - Verify: `mongosh` or `mongo`
+## 🚀 Installation
 
-3. **npm** (comes with Node.js)
-   - Verify: `npm --version`
+### 1. Install dependencies
 
-## 🚀 Installation Steps
-
-### Step 1: Extract and Navigate
 ```bash
-cd pentest-app
+# From the project root — installs both server and client in one command
+npm run install-all
 ```
 
-### Step 2: Install Dependencies
+Or manually:
 
 ```bash
-# Install server dependencies
 npm install
-
-# Install client dependencies
-cd client
-npm install
-cd ..
+cd client && npm install && cd ..
 ```
 
-### Step 3: Configure Environment
+### 2. Configure environment
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the project root. Use the template below and fill in your own values — **never commit this file to version control**.
 
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your settings:
 ```env
+# ── Server ────────────────────────────────────────────────────────────────────
 PORT=5000
 NODE_ENV=development
+
+# ── Database ──────────────────────────────────────────────────────────────────
 MONGODB_URI=mongodb://localhost:27017/pentest-reports
-JWT_SECRET=change_this_to_a_long_random_string_for_production
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+# Generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+JWT_SECRET=your_long_random_secret_here
 JWT_EXPIRE=7d
+
+# ── File uploads ──────────────────────────────────────────────────────────────
 MAX_FILE_SIZE=10485760
 UPLOAD_PATH=./uploads
+
+# ── AI (Groq) ─────────────────────────────────────────────────────────────────
+# Get your key from: https://console.groq.com/keys
+GROQ_API_KEY=your_groq_api_key_here
+
+# ── Email (Resend) ────────────────────────────────────────────────────────────
+# Get your key from: https://resend.com → API Keys
+RESEND_API_KEY=your_resend_api_key_here
+
+# ── Email (Gmail fallback) ────────────────────────────────────────────────────
+GMAIL_USER=your_gmail_address@gmail.com
+GMAIL_APP_PASSWORD=your_gmail_app_password_here
+
+# ── App ───────────────────────────────────────────────────────────────────────
+APP_NAME=Report Generator
+CLIENT_URL=http://localhost:3000
 ```
 
-**IMPORTANT**: Change `JWT_SECRET` to a secure random string in production!
+> **Security note:** `JWT_SECRET` must be a long random string in production. To generate one run:  
+> `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
 
-### Step 4: Add Your Template
-
-Copy your `WAPT_template.docx` file to the templates directory:
-
-```bash
-mkdir -p templates
-cp /path/to/your/WAPT_template.docx templates/
-```
-
-### Step 5: Start MongoDB
-
-Make sure MongoDB is running:
+### 3. Start MongoDB
 
 ```bash
-# If using system installation
+# System installation
 sudo systemctl start mongod
 
-# Or if using Docker
+# Docker
 docker start mongodb
-
-# Verify it's running
-mongosh
-# or
-mongo
 ```
 
-### Step 6: Run the Application
-
-**Option A: Development Mode (Recommended for development)**
-
-Run both frontend and backend concurrently:
+### 4. Run the application
 
 ```bash
+# Development — starts both backend (port 5000) and frontend (port 3000) concurrently
 npm run dev
 ```
 
-This will:
-- Start the backend server on `http://localhost:5000`
-- Start the React dev server on `http://localhost:3000`
-- Open your browser automatically
-
-**Option B: Run Separately**
-
-Terminal 1 (Backend):
-```bash
-npm run server
-```
-
-Terminal 2 (Frontend):
-```bash
-npm run client
-```
-
-**Option C: Production Mode**
+Other options:
 
 ```bash
-# Build the frontend
-npm run build
-
-# Set environment to production
-export NODE_ENV=production
-
-# Start the server
-npm start
+npm run server    # Backend only (with nodemon)
+npm run client    # Frontend only
+npm start         # Production (no nodemon, no React dev server)
 ```
+
+Open your browser at **http://localhost:3000**
+
+---
 
 ## 📱 Using the Application
 
-### 1. First Time Setup
+### Register & Login
 
-1. Open your browser to `http://localhost:3000`
-2. Click **"Register here"**
-3. Create your account:
-   - Username (minimum 3 characters)
-   - Email
-   - Password (minimum 6 characters)
-4. You'll be automatically logged in
+1. Go to `http://localhost:3000` and click **"Register here"**
+2. Fill in your username, email, and password (min. 6 characters)
+3. Verify your email address via the link sent to your inbox
+4. Log in — you'll land on the Dashboard
 
-### 2. Creating a Report
+> Password reset and email change are available from **Settings**.
 
-1. Click **"+ Create New Report"** from the dashboard
-2. Fill in the form sections:
-   
-   **Project Information:**
-   - Project Name (required)
-   - Testing Company Name
-   - Testing Mode (Black Box, White Box, etc.)
-   
-   **Targets:**
-   - Add all tested targets (name, URL, severity)
-   - Use "+ Add Target" to add more
-   
-   **Test User Accounts:**
-   - Add credentials used during testing
-   - Username and description for each
-   
-   **Vulnerabilities:**
-   - Add each finding with:
-     - Name, severity, priority
-     - CVSS score and vector
-     - Description (multiple fields available)
-     - Impact
-     - Remediation steps
-     - Affected targets
-     - Vulnerable parameters
-     - Testing methodologies
+---
 
-3. Click **"Create Report"**
+### Dashboard
 
-### 3. Managing Reports
+The Dashboard lists all your reports. Each card shows:
+- Project name and client
+- Testing period (start → end date)
+- Vulnerability severity distribution bar
+- **Status badge** — toggle between `✏️ Editing` and `✅ Finished` directly from the card
 
-From the dashboard you can:
-- **View** all your reports
-- **Edit** any report
-- **Download DOCX** - generates Word document with your template
-- **Delete** reports you no longer need
+**Filter panel** (click 🔍 Filters): filter reports by status, client, tester, and date range (start date, end date, created, or updated). All filtering is instant and client-side.
 
-### 4. Generating Documents
+---
 
-1. Go to Dashboard
-2. Find your report
-3. Click **"📥 Download DOCX"**
-4. The system will:
-   - Load your template
-   - Replace all `[TEXT]` placeholders with your data
-   - Generate and download the final document
+### Creating a Report
 
-## 🔧 Template Placeholder Mapping
+Click **➕ New Report** from the sidebar.
 
-Your template uses these placeholders, which map to form fields:
+Fill in the form sections:
 
-### Project Fields
-- `[TESTING COMPANY NAME]` → Testing Company Name
-- `[TESTING MODE]` → Testing Mode
+**Project Info**
+- Project name (required)
+- Client name
+- Testing company name
+- Testing mode (Black Box, White Box, Grey Box, etc.)
+- Start & end dates, duration
+- Executive summary
 
-### Target Fields (numbered 1, 2, 3...)
-- `[TARGET1 NAME]` → Target 1 Name
-- `[TARGET1 URL]` → Target 1 URL
-- `[TARGET1 SEVERITY]` → Target 1 Severity
+**Revisioner & Approver**
+- Name, role, and date for the revisioner
+- Name and date for the approver
 
-### User Account Fields
-- `[USERNAME1]` → User Account 1 Username
-- `[USERNAME1 DESCRIPTION]` → User Account 1 Description
+**Testers**
+- Add one or more testers with name, role, and date
 
-### Vulnerability Fields (numbered 1, 2, 3...)
-- `[VULNERABILITY1 NAME]` → Vulnerability 1 Name
-- `[VULNERABILITY1 SEVERITY]` → Vulnerability 1 Severity
-- `[VULNERABILITY1 PRIORITY]` → Vulnerability 1 Priority
-- `[CVSS VULN1]` → CVSS Score
-- `[CVSS VECTOR VULN1]` → CVSS Vector String
-- `[VULN1 DESCRIPTION]` → Main Description
-- `[VULN1 DESCRIPTION1]` → Additional Description 1
-- `[VULN1 DESCRIPTION2]` → Additional Description 2
-- `[VULN1 IMPACT]` → Impact
-- `[VULN1 REMEDIETION]` → Remediation Steps
-- `[VULN1 TARGET1]` → Affected Target 1
-- `[VULN1 PARAMETER1]` → Vulnerable Parameter 1
-- `[VULN1 MET1]` → Testing Methodology 1
+**Targets**
+- Add each tested target: name, URL, and severity
 
-## 🛠️ Troubleshooting
+**Credentials**
+- Test accounts used during the engagement: username and description
 
-### MongoDB Connection Issues
+**Vulnerabilities**
+- For each finding:
+  - Name, severity, priority
+  - CVSS score and vector (built-in CVSS calculator available)
+  - Description, impact, remediation
+  - OWASP Top 10 category and CWE references
+  - Endpoints (HTTP method, path, parameter)
+  - Attacks — each attack step can be either **text** or an **image with a caption**
+  - Internal notes (not exported to the final document)
 
-**Error**: "MongoServerError: connect ECONNREFUSED"
+> The **AI Enhancement** button (✨) on text fields uses Groq to improve wording. It applies only to the current field and can be reviewed before accepting.
 
-**Solution**:
-```bash
-# Check if MongoDB is running
-sudo systemctl status mongod
+Click **Create Report** to save.
 
-# Start MongoDB
-sudo systemctl start mongod
+---
 
-# Or using Docker
-docker ps  # Check if container is running
-docker start mongodb
+### Editing a Report
+
+From the Dashboard, click **Edit** on any card to reopen the full form. All fields are editable. Save with **Update Report**.
+
+---
+
+### Downloading a Report
+
+Click **📥 Download DOCX** on any card. The server will:
+1. Load the selected (or default) `.docx` template
+2. Inject all report data into the template placeholders
+3. Return a ready-to-download Word document
+
+---
+
+### Report Templates
+
+Navigate to **📄 Report Templates** from the sidebar to upload and manage `.docx` templates. One template can be set as the default for all new reports. Templates use the placeholder syntax described below.
+
+---
+
+### Vulnerability Templates
+
+Navigate to **📋 Vulnerability Templates** to manage a reusable library of common findings. When adding vulnerabilities to a report, you can load any saved template to pre-fill the fields.
+
+---
+
+## 📄 Template Placeholder Reference
+
+Templates use `{placeholder}` syntax. Dynamic sections use `{#section}...{/section}` loops.
+
+### Static fields
+
+```
+{client_name}
+{testing_company_name}
+{testing_mode}
+{testing_start_date}
+{testing_end_date}
+{testing_duration}
+{executive_summary}
+
+{revisioner_name}
+{revisioner_role}
+{revisioner_date}
+
+{approver_name}
+{approver_date}
 ```
 
-### Port Already in Use
+### Dynamic sections
 
-**Error**: "Port 5000 is already in use"
+```
+{#testers}
+  {name}  {role}  {date}
+{/testers}
 
-**Solution**:
-```bash
-# Find what's using the port
-lsof -i :5000
+{#targets}
+  {name}  {url}  {severity}
+{/targets}
 
-# Kill the process or change port in .env
-PORT=5001
+{#credentials}
+  {username}  {description}
+{/credentials}
+
+{#vulnerabilities}
+  {name}  {severity}  {priority}
+  {cvss_score}  {cvss_vector}
+  {description}  {impact}  {remediation}
+
+  {#endpoints}
+    {index}  {http_method}  {path}  {parameter}
+  {/endpoints}
+
+  {#attacks}
+    {#if type=='text'}  {text}  {/if}
+    {#if type=='image'} {image} {caption} {/if}
+  {/attacks}
+{/vulnerabilities}
 ```
 
-### Cannot Find Module Errors
-
-**Solution**:
-```bash
-# Reinstall dependencies
-rm -rf node_modules
-npm install
-
-# For client
-cd client
-rm -rf node_modules
-npm install
-```
-
-### Template Not Found
-
-**Error**: "Template file not found"
-
-**Solution**:
-```bash
-# Ensure template is in correct location
-ls templates/WAPT_template.docx
-
-# If missing, copy it
-cp /path/to/WAPT_template.docx templates/
-```
-
-### JWT Token Errors
-
-**Solution**:
-- Make sure `JWT_SECRET` is set in `.env`
-- Try logging out and logging back in
-- Clear browser localStorage: `localStorage.clear()`
+---
 
 ## 📁 Project Structure
 
@@ -298,191 +270,176 @@ cp /path/to/WAPT_template.docx templates/
 pentest-app/
 ├── server/
 │   ├── models/
-│   │   ├── User.js          # User schema
-│   │   └── Report.js        # Report schema
+│   │   ├── User.js                   # User schema (auth, email verification)
+│   │   ├── Report.js                 # Report schema (full data model)
+│   │   ├── Template.js               # Report template schema
+│   │   └── VulnerabilityTemplate.js  # Reusable vulnerability library
 │   ├── routes/
-│   │   ├── auth.js          # Authentication routes
-│   │   └── reports.js       # Report CRUD + generation
+│   │   ├── auth.js                   # Register, login, verify, reset, settings
+│   │   ├── reports.js                # CRUD + DOCX generation
+│   │   ├── templates.js              # Report template upload/manage
+│   │   ├── vulnerability-templates.js
+│   │   └── ai.js                     # AI text enhancement (Groq)
 │   ├── middleware/
-│   │   └── auth.js          # JWT authentication middleware
-│   └── server.js            # Main server file
+│   │   └── auth.js                   # JWT protect middleware
+│   └── server.js
 ├── client/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Login.js     # Login page
-│   │   │   ├── Register.js  # Registration page
-│   │   │   ├── Dashboard.js # Report list
-│   │   │   ├── CreateReport.js  # Create report form
-│   │   │   └── EditReport.js    # Edit report form
-│   │   ├── context/
-│   │   │   └── AuthContext.js   # Auth state management
-│   │   ├── App.js           # Main app component
-│   │   └── index.js         # React entry point
-│   └── package.json
-├── templates/
-│   └── WAPT_template.docx   # Your Word template
-├── uploads/                 # User uploaded files
-├── .env                     # Environment variables
-├── .env.example            # Example environment file
-├── package.json            # Server dependencies
-└── README.md              # This file
+│   └── src/
+│       ├── pages/
+│       │   ├── Dashboard.js          # Report list + filters + status
+│       │   ├── CreateReport.js       # New report form
+│       │   ├── EditReport.js         # Edit existing report
+│       │   ├── Templates.js          # Report template manager
+│       │   ├── Settings.js           # Password & email change
+│       │   ├── Login.js / Register.js
+│       │   ├── ForgotPassword.js / ResetPassword.js
+│       │   ├── VerifyEmail.js / VerifyEmailChange.js
+│       │   └── ResendVerification.js
+│       ├── components/
+│       │   ├── ReportFormSections.js # All form section components
+│       │   ├── CVSSCalculator.js     # CVSS v3 scoring tool
+│       │   ├── TemplateSelector.js   # Template picker in report form
+│       │   ├── TemplateManager.js    # Vuln template library UI
+│       │   └── Copyright.js
+│       ├── context/
+│       │   └── AuthContext.js        # Global auth state
+│       ├── hooks/
+│       │   └── useReportForm.js      # Shared form state logic
+│       └── App.js
+├── guides/
+│   ├── doc_tags.md                   # Template placeholder reference
+│   └── app_run_guide.md
+├── uploads/                          # Uploaded images (attack screenshots)
+├── templates/                        # Stored .docx templates
+├── .env                              # ⚠️ Local only — never commit
+├── .gitignore
+├── package.json
+└── README.md
 ```
 
-## 🔐 Security Notes
-
-1. **Change JWT_SECRET**: Use a long, random string in production
-2. **Use HTTPS**: In production, always use HTTPS
-3. **MongoDB Authentication**: Enable authentication in production
-4. **Environment Variables**: Never commit `.env` to version control
-5. **Input Validation**: All inputs are validated on backend
-6. **Password Hashing**: Passwords are hashed with bcrypt
+---
 
 ## 🌐 API Endpoints
 
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
-- `GET /api/auth/me` - Get current user (protected)
+All protected routes require a `Bearer <token>` Authorization header.
 
-### Reports
-- `GET /api/reports` - Get all user's reports (protected)
-- `GET /api/reports/:id` - Get single report (protected)
-- `POST /api/reports` - Create new report (protected)
-- `PUT /api/reports/:id` - Update report (protected)
-- `DELETE /api/reports/:id` - Delete report (protected)
-- `POST /api/reports/:id/generate` - Generate DOCX (protected)
+### Auth — `/api/auth`
+| Method | Path | Description |
+|---|---|---|
+| POST | `/register` | Create account |
+| GET | `/verify-email` | Verify email via token |
+| POST | `/resend-verification` | Resend verification email |
+| POST | `/login` | Login, returns JWT |
+| POST | `/forgot-password` | Send reset email |
+| POST | `/reset-password` | Reset password via token |
+| GET | `/me` | Get current user 🔒 |
+| PUT | `/settings/password` | Change password 🔒 |
+| PUT | `/settings/email` | Request email change 🔒 |
+| GET | `/verify-email-change` | Confirm new email via token |
 
-## 🎯 Features
+### Reports — `/api/reports` 🔒
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` | List all user reports |
+| GET | `/:id` | Get single report |
+| POST | `/` | Create report |
+| PUT | `/:id` | Update report (includes status) |
+| DELETE | `/:id` | Delete report |
+| POST | `/:id/generate` | Generate & download DOCX |
 
-✅ User authentication (register/login)
-✅ Secure password hashing
-✅ JWT token-based sessions
-✅ Create, edit, delete reports
-✅ Dynamic form for all template fields
-✅ Multiple targets per report
-✅ Multiple vulnerabilities per report
-✅ Array fields for targets, parameters, methodologies
-✅ Generate Word documents from template
-✅ Download generated reports
-✅ Responsive design
-✅ MongoDB data persistence
+### Templates — `/api/templates` 🔒
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` | List templates |
+| GET | `/default` | Get default template |
+| POST | `/upload` | Upload `.docx` template |
+| DELETE | `/:id` | Delete template |
 
-## 📊 Database Schema
+### AI — `/api/ai` 🔒
+| Method | Path | Description |
+|---|---|---|
+| POST | `/enhance-text` | Enhance a text field with AI |
+| POST | `/preview-mask` | Preview text masking |
+| GET | `/models` | List available AI models |
 
-### Users Collection
-```javascript
-{
-  username: String (unique),
-  email: String (unique),
-  password: String (hashed),
-  createdAt: Date
-}
+---
+
+## 🔐 Security Notes
+
+- Never commit `.env` to version control — it is listed in `.gitignore`
+- Use a strong, unique `JWT_SECRET` in production (64+ random bytes)
+- Enable MongoDB authentication in production environments
+- Serve the application over HTTPS in production
+- Passwords are hashed with bcrypt before storage
+- All protected routes validate the JWT on every request
+
+---
+
+## 🛠️ Troubleshooting
+
+**MongoDB won't connect**
+```bash
+sudo systemctl status mongod
+sudo systemctl start mongod
+# Docker:
+docker ps && docker start mongodb
 ```
 
-### Reports Collection
-```javascript
-{
-  user: ObjectId (ref: User),
-  projectName: String,
-  testingCompanyName: String,
-  testingMode: String,
-  targets: [{
-    name: String,
-    url: String,
-    severity: String
-  }],
-  userAccounts: [{
-    username: String,
-    description: String
-  }],
-  vulnerabilities: [{
-    name: String,
-    severity: String,
-    priority: String,
-    cvssScore: String,
-    cvssVector: String,
-    description: String,
-    description1: String,
-    description2: String,
-    impact: String,
-    remediation: String,
-    targets: [String],
-    parameters: [String],
-    methodologies: [String]
-  }],
-  createdAt: Date,
-  updatedAt: Date
-}
+**Port 5000 already in use**
+```bash
+lsof -i :5000   # find the process
+# or change PORT in .env
 ```
 
-## 🚢 Deployment
+**Module not found / dependency errors**
+```bash
+rm -rf node_modules client/node_modules
+npm run install-all
+```
 
-For production deployment:
+**Template not found on DOCX generation**  
+Upload a `.docx` template via the **Report Templates** page and set it as default, or ensure a file exists in the `templates/` folder.
 
-1. **Build frontend**:
-   ```bash
-   npm run build
-   ```
+**Emails not arriving**  
+Check that `RESEND_API_KEY` or `GMAIL_USER` + `GMAIL_APP_PASSWORD` are correctly set in `.env`. For Gmail, use an [App Password](https://myaccount.google.com/apppasswords), not your regular password.
 
-2. **Set environment**:
-   ```bash
-   export NODE_ENV=production
-   ```
+**JWT errors / logged out unexpectedly**  
+Ensure `JWT_SECRET` is set in `.env`. If you changed it, existing tokens are invalidated — log in again.
 
-3. **Use process manager** (PM2):
-   ```bash
-   npm install -g pm2
-   pm2 start server/server.js --name pentest-app
-   pm2 save
-   pm2 startup
-   ```
+---
 
-4. **Reverse proxy** (Nginx):
-   Configure Nginx to proxy to your Node.js server
-
-5. **SSL Certificate** (Let's Encrypt):
-   ```bash
-   sudo certbot --nginx -d yourdomain.com
-   ```
-
-## 📝 License
-
-This project is for internal use. Customize as needed.
-
-## 🆘 Support
-
-If you encounter issues:
-
-1. Check this README thoroughly
-2. Review error messages in terminal
-3. Check MongoDB is running
-4. Ensure all dependencies are installed
-5. Verify `.env` configuration
-6. Check template file location
-
-## 🎉 Quick Start Summary
+## 🚢 Production Deployment
 
 ```bash
-# 1. Install dependencies
-npm install && cd client && npm install && cd ..
+# 1. Build the React frontend
+npm run build
 
-# 2. Configure environment
-cp .env.example .env
-# Edit .env with your settings
+# 2. Set environment
+export NODE_ENV=production
 
-# 3. Add template
-cp /path/to/WAPT_template.docx templates/
+# 3. Run with PM2
+npm install -g pm2
+pm2 start server/server.js --name report-generator
+pm2 save && pm2 startup
 
-# 4. Start MongoDB
-sudo systemctl start mongod
+# 4. Reverse proxy with Nginx → point to port 5000
 
-# 5. Run application
-npm run dev
-
-# 6. Open browser
-# http://localhost:3000
-
-# 7. Register and start creating reports!
+# 5. SSL with Let's Encrypt
+sudo certbot --nginx -d yourdomain.com
 ```
 
-Enjoy creating professional penetration testing reports! 🔒🔍
+---
+
+## ✅ Feature Overview
+
+- User registration, login, email verification, password reset
+- Full CRUD for penetration testing reports
+- Report status tracking: **Editing** / **Finished**
+- Rich vulnerability model: CVSS, OWASP, CWE, endpoints, attack steps (text + images)
+- AI-assisted text enhancement per field (Groq)
+- Built-in CVSS v3 calculator
+- Reusable vulnerability template library
+- Custom `.docx` report template support with dynamic placeholders
+- Dashboard filters: status, client, tester, date range
+- DOCX generation and download
+- Settings: password change, email change with verification
