@@ -54,6 +54,7 @@ export default function EditReport() {
   const [enhancingExecSummary, setEnhancingExecSummary] = useState(false);
   const [execSummaryError, setExecSummaryError] = useState(null);
   const [savedPrompts, setSavedPrompts] = useState([]);
+  const [selectedModel, setSelectedModel] = useState('fast'); // 'fast' | 'powerful' — shared across all AI buttons
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultData, setResultData] = useState(null);
 
@@ -66,6 +67,7 @@ export default function EditReport() {
     addTester, removeTester, handleTesterChange,
     addVulnerability, removeVulnerability, duplicateVulnerability, handleVulnChange,
     addVulnArrayItem, removeVulnArrayItem,
+    addCweReference, removeCweReference, handleCweChange,
     handleEndpointChange, handleAttackChange,
     handleImageUpload, removeAttack,
     saveAsTemplate, loadTemplate,
@@ -100,7 +102,11 @@ export default function EditReport() {
     }
   };
 
-  const handleEnhanceExecutiveSummary = async (action, editedMaskedText, customPrompt, maskMap) => {
+  const handleDeletePrompt = (idx) => {
+    setSavedPrompts(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleEnhanceExecutiveSummary = async (action, editedMaskedText, customPrompt, maskMap, model = 'fast') => {
     setEnhancingExecSummary(true);
     setExecSummaryError(null);
 
@@ -109,7 +115,8 @@ export default function EditReport() {
       
       const requestBody = {
         text: editedMaskedText,
-        action: action
+        action: action,
+        model: model
       };
 
       if (action === 'custom' && customPrompt) {
@@ -132,7 +139,8 @@ export default function EditReport() {
         
         setResultData({
           originalText: formData.executive_summary,
-          aiResult: unmaskedResult
+          aiResult: unmaskedResult,
+          modelUsed: response.data.model_used || model
         });
         setShowResultModal(true);
       }
@@ -182,6 +190,9 @@ export default function EditReport() {
           isEnhancingExecutiveSummary={enhancingExecSummary}
           savedPrompts={savedPrompts}
           onSavePrompt={handleSavePrompt}
+          onDeletePrompt={handleDeletePrompt}
+          selectedModel={selectedModel}
+          onModelChange={setSelectedModel}
         />
 
         <TargetsSection
@@ -207,6 +218,9 @@ export default function EditReport() {
           handleVulnChange={handleVulnChange}
           addVulnArrayItem={addVulnArrayItem} 
           removeVulnArrayItem={removeVulnArrayItem}
+          addCweReference={addCweReference}
+          removeCweReference={removeCweReference}
+          handleCweChange={handleCweChange}
           handleEndpointChange={handleEndpointChange} 
           handleAttackChange={handleAttackChange}
           handleImageUpload={handleImageUpload} 
@@ -215,6 +229,8 @@ export default function EditReport() {
           handleSaveAsTemplate={saveAsTemplate}
           handleLoadTemplate={loadTemplate}
           moveVulnerability={moveVulnerability}
+          selectedModel={selectedModel}
+          onModelChange={setSelectedModel}
         />
 
         <div className="form-actions">
@@ -233,6 +249,7 @@ export default function EditReport() {
           onApply={handleApplyExecSummaryResult}
           originalText={resultData.originalText}
           aiResult={resultData.aiResult}
+          modelUsed={resultData.modelUsed}
         />
       )}
     </div>
@@ -240,7 +257,7 @@ export default function EditReport() {
 }
 
 // AI Result Modal Component
-function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult }) {
+function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult, modelUsed }) {
   const [editedResult, setEditedResult] = React.useState(aiResult);
 
   React.useEffect(() => {
@@ -259,7 +276,14 @@ function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult }) {
     <div className="template-manager-overlay" onClick={onClose}>
       <div className="ai-enhancement-modal" onClick={(e) => e.stopPropagation()}>
         <div className="template-manager-header">
-          <h2>✨ AI Enhancement Result</h2>
+          <div className="ai-result-header-left">
+            <h2>✨ AI Enhancement Result</h2>
+            {modelUsed && (
+              <span className={`ai-model-badge ${modelUsed === 'fast' ? 'ai-model-badge--fast' : 'ai-model-badge--powerful'}`}>
+                {modelUsed === 'fast' ? '⚡ Fast (8B)' : '🧠 Powerful (70B)'}
+              </span>
+            )}
+          </div>
           <button onClick={onClose} className="btn btn-sm btn-secondary">✕ Close</button>
         </div>
         

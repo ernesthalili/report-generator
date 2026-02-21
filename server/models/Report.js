@@ -35,6 +35,11 @@ const attackSchema = new mongoose.Schema({
   caption: { type: String }    // For image type (caption)
 });
 
+const cweReferenceSchema = new mongoose.Schema({
+  cwe_name: { type: String, required: true },  // e.g., "CWE-89: Improper Neutralization of Special Elements..."
+  cwe_url:  { type: String, required: true }   // e.g., "https://cwe.mitre.org/data/definitions/89.html"
+});
+
 const vulnerabilitySchema = new mongoose.Schema({
   // single-value fields per vulnerability
   name:          { type: String, required: true },
@@ -49,6 +54,9 @@ const vulnerabilitySchema = new mongoose.Schema({
   // OWASP Top 10 classification
   owasp_category: { type: String },  // e.g., "A01 - Broken Access Control"
   
+  // CWE references (many-to-many: each vulnerability can reference multiple CWEs)
+  cwe_references: [cweReferenceSchema],
+
   // Internal notes (not exported to report)
   internal_notes: { type: String },
 

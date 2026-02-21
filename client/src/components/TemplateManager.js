@@ -109,7 +109,9 @@ const TemplateManager = ({ onClose }) => {
     description: '',
     impact: '',
     remediation: '',
-    owasp_category: ''
+    owasp_category: '',
+    cwe_references: [],
+    internal_notes: ''
   });
 
   useEffect(() => { loadTemplates(); }, []);
@@ -133,19 +135,59 @@ const TemplateManager = ({ onClose }) => {
     }
   };
 
+  // Derive cwe_name and cwe_url from a bare CWE ID number
+  const cweIdToRef = (rawId) => {
+    const id = String(rawId).replace(/\D/g, '');
+    return {
+      cwe_id:   id,
+      cwe_name: id ? `CWE-${id}` : '',
+      cwe_url:  id ? `https://cwe.mitre.org/data/definitions/${id}.html` : ''
+    };
+  };
+
+  // Fetch the official CWE title from the MITRE API (async, on blur)
+  const fetchCweTitle = async (rawId) => {
+    const id = String(rawId).replace(/\D/g, '');
+    const base = cweIdToRef(id);
+    if (!id) return base;
+    try {
+      const res = await fetch(`https://cwe-api.mitre.org/api/v1/cwe/${id}`, {
+        headers: { Accept: 'application/json' }
+      });
+      if (!res.ok) return base;
+      const data = await res.json();
+      const weakness = data?.Weaknesses?.[0];
+      if (weakness?.Name) {
+        return { ...base, cwe_name: `CWE-${id}: ${weakness.Name}` };
+      }
+    } catch (_) { /* network off – use generic name */ }
+    return base;
+  };
+
+  // Map a stored CWE ref (with cwe_name/cwe_url) to include cwe_id for the form
+  const normaliseRef = (c) => {
+    const idMatch = (c.cwe_name || '').match(/(\d+)/);
+    const id = c.cwe_id || (idMatch ? idMatch[1] : '');
+    return { cwe_id: id, cwe_name: c.cwe_name || '', cwe_url: c.cwe_url || '' };
+  };
+
   const handleSelectTemplate = (template) => {
     if (selectionMode) return;
     setSelectedTemplate(template);
     setFormData({
-      name: template.name || '',
-      severity: template.severity || '',
-      priority: template.priority || '',
-      cvss_score: template.cvss_score || '',
-      cvss_vector: template.cvss_vector || '',
-      description: template.description || '',
-      impact: template.impact || '',
-      remediation: template.remediation || '',
-      owasp_category: template.owasp_category || ''
+      name:           template.name           || '',
+      severity:       template.severity       || '',
+      priority:       template.priority       || '',
+      cvss_score:     template.cvss_score     || '',
+      cvss_vector:    template.cvss_vector    || '',
+      description:    template.description    || '',
+      impact:         template.impact         || '',
+      remediation:    template.remediation    || '',
+      owasp_category: template.owasp_category || '',
+      cwe_references: Array.isArray(template.cwe_references)
+        ? template.cwe_references.map(normaliseRef)
+        : [],
+      internal_notes: template.internal_notes || ''
     });
     setIsEditing(false);
   };
@@ -159,14 +201,50 @@ const TemplateManager = ({ onClose }) => {
     setFormData(prev => ({ ...prev, cvss_score: score, severity, cvss_vector: vector }));
   };
 
+  // ---------------------------------------------------------------------------
+  // CWE Reference helpers
+  // ---------------------------------------------------------------------------
+  const addCweRef = () => {
+    setFormData(prev => ({
+      ...prev,
+      cwe_references: [...(prev.cwe_references || []), { cwe_id: '', cwe_name: '', cwe_url: '' }]
+    }));
+  };
+
+  const removeCweRef = (idx) => {
+    setFormData(prev => ({
+      ...prev,
+      cwe_references: prev.cwe_references.filter((_, i) => i !== idx)
+    }));
+  };
+
+  const handleCweRefChange = (idx, field, value) => {
+    setFormData(prev => {
+      const refs = [...(prev.cwe_references || [])];
+      if (field === 'cwe_id') {
+        refs[idx] = { ...refs[idx], ...cweIdToRef(value) };
+      } else {
+        refs[idx] = { ...refs[idx], [field]: value };
+      }
+      return { ...prev, cwe_references: refs };
+    });
+  };
+
   const handleSaveTemplate = async () => {
     try {
       if (!formData.name.trim()) { alert('Template name is required'); return; }
+      // Send only cwe_name and cwe_url to the server (strip the UI-only cwe_id field)
+      const dataToSend = {
+        ...formData,
+        cwe_references: (formData.cwe_references || [])
+          .filter(c => c.cwe_id || c.cwe_name)
+          .map(({ cwe_name, cwe_url }) => ({ cwe_name, cwe_url }))
+      };
       if (selectedTemplate) {
-        await axios.put('/api/vulnerability-templates/' + selectedTemplate._id, formData);
+        await axios.put('/api/vulnerability-templates/' + selectedTemplate._id, dataToSend);
         showSuccess('Template updated successfully');
       } else {
-        await axios.post('/api/vulnerability-templates', formData);
+        await axios.post('/api/vulnerability-templates', dataToSend);
         showSuccess('Template created successfully');
       }
       await loadTemplates();
@@ -199,7 +277,7 @@ const TemplateManager = ({ onClose }) => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', severity: '', priority: '', cvss_score: '', cvss_vector: '', description: '', impact: '', remediation: '', owasp_category: '' });
+    setFormData({ name: '', severity: '', priority: '', cvss_score: '', cvss_vector: '', description: '', impact: '', remediation: '', owasp_category: '', cwe_references: [], internal_notes: '' });
   };
 
   // ---------------------------------------------------------------------------
@@ -576,6 +654,117 @@ const TemplateManager = ({ onClose }) => {
                   <div className="form-group">
                     <label>Remediation</label>
                     <textarea name="remediation" value={formData.remediation} onChange={handleInputChange} rows="4" placeholder="How to fix this vulnerability..." disabled={!isEditing} />
+                  </div>
+
+                  {/* CWE References */}
+                  <div className="form-group">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <label style={{ marginBottom: 0 }}>CWE References</label>
+                      {isEditing && (
+                        <button type="button" onClick={addCweRef} className="btn btn-sm btn-secondary">
+                          + Add CWE
+                        </button>
+                      )}
+                    </div>
+                    {(formData.cwe_references || []).length === 0 && (
+                      <p style={{ fontSize: '0.85em', color: '#888', margin: '4px 0 0' }}>
+                        No CWE references added yet.
+                      </p>
+                    )}
+                    {(formData.cwe_references || []).map((cwe, ci) => (
+                      <div key={ci} style={{ marginBottom: '8px', padding: '10px', background: '#f5f8ff', border: '1px solid #d0dff8', borderRadius: '6px' }}>
+                        {isEditing ? (
+                          /* ---- Edit mode: number + editable name + MITRE link + remove ---- */
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                              <span style={{ fontWeight: '600', whiteSpace: 'nowrap', fontSize: '0.9em' }}>CWE-</span>
+                              <input
+                                type="text"
+                                value={cwe.cwe_id || ''}
+                                onChange={(e) => handleCweRefChange(ci, 'cwe_id', e.target.value)}
+                                onBlur={async (e) => {
+                                  const id = e.target.value.replace(/\D/g, '');
+                                  if (!id) return;
+                                  handleCweRefChange(ci, 'cwe_url', `https://cwe.mitre.org/data/definitions/${id}.html`);
+                                  // Only auto-fetch if name is still empty
+                                  if (cwe.cwe_name && cwe.cwe_name.trim() !== '') return;
+                                  const ref = await fetchCweTitle(id);
+                                  handleCweRefChange(ci, 'cwe_name', ref.cwe_name);
+                                }}
+                                placeholder="e.g. 89"
+                                style={{ width: '70px' }}
+                                title="CWE number"
+                              />
+                            </div>
+                            <input
+                              type="text"
+                              value={cwe.cwe_name || ''}
+                              onChange={(e) => handleCweRefChange(ci, 'cwe_name', e.target.value)}
+                              placeholder="CWE name (auto-filled or type manually)"
+                              style={{ flex: 1 }}
+                              title="CWE name – auto-filled from MITRE when number is entered, editable"
+                            />
+                            {cwe.cwe_url && (
+                              <a
+                                href={cwe.cwe_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-secondary"
+                                title="Open MITRE CWE page"
+                                style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                              >
+                                🔗 MITRE
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removeCweRef(ci)}
+                              className="btn btn-sm btn-danger"
+                              title="Remove CWE reference"
+                              style={{ flexShrink: 0 }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          /* ---- View mode: "CWE-{id}: {name}" as text + MITRE link ---- */
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontWeight: '500', flex: 1 }}>
+                              {cwe.cwe_id ? `CWE-${cwe.cwe_id}` : ''}{cwe.cwe_name ? `: ${cwe.cwe_name}` : ''}
+                            </span>
+                            {cwe.cwe_url && (
+                              <a
+                                href={cwe.cwe_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-secondary"
+                                title="Open MITRE CWE page"
+                                style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                              >
+                                🔗 MITRE
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Internal Notes */}
+                  <div className="form-group">
+                    <label>
+                      Internal Notes
+                      <span style={{ fontSize: '0.85em', color: '#666', marginLeft: '6px' }}>(Not included in final report)</span>
+                    </label>
+                    <textarea
+                      name="internal_notes"
+                      value={formData.internal_notes || ''}
+                      onChange={handleInputChange}
+                      rows="3"
+                      placeholder="Personal notes, testing details, or any information for internal use only…"
+                      disabled={!isEditing}
+                      style={{ borderColor: '#ffa500', backgroundColor: isEditing ? '#fffbf0' : '#fdf8ee', color: '#333' }}
+                    />
                   </div>
                 </div>
               </>

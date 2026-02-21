@@ -17,6 +17,42 @@ export const EMPTY_TESTER       = () => ({ name: '', role: '', date: '' });
 export const EMPTY_ENDPOINT     = () => ({ index: 1, http_method: '', path: '', parameter: '' });
 export const EMPTY_ATTACK       = () => ({ type: 'text', text: '', image: '', caption: '' });
 
+export const EMPTY_CWE_REFERENCE  = () => ({ cwe_id: '' });
+
+// Build the stored cwe_name and cwe_url from a bare CWE ID number (sync, instant)
+export const cweIdToRef = (rawId) => {
+  const id = String(rawId).replace(/\D/g, ''); // strip non-digits, e.g. "CWE-89" → "89"
+  return {
+    cwe_id:   id,
+    cwe_name: id ? `CWE-${id}` : '',
+    cwe_url:  id ? `https://cwe.mitre.org/data/definitions/${id}.html` : ''
+  };
+};
+
+// Fetch the official CWE title from the MITRE CWE API and return an enriched ref.
+// Falls back gracefully if the request fails or id is empty.
+// Returns: { cwe_id, cwe_name, cwe_url }  (cwe_name includes title when available)
+export const fetchCweTitle = async (rawId) => {
+  const id = String(rawId).replace(/\D/g, '');
+  const base = cweIdToRef(id);
+  if (!id) return base;
+  try {
+    const res = await fetch(`https://cwe-api.mitre.org/api/v1/cwe/${id}`, {
+      headers: { Accept: 'application/json' }
+    });
+    if (!res.ok) return base;
+    const data = await res.json();
+    // The API returns { Weaknesses: [{ CweID, Name, ... }] }
+    const weakness = data?.Weaknesses?.[0];
+    if (weakness?.Name) {
+      return { ...base, cwe_name: `CWE-${id}: ${weakness.Name}` };
+    }
+  } catch (_) {
+    // network unavailable or CORS - fall back to generic name
+  }
+  return base;
+};
+
 export const EMPTY_VULNERABILITY = () => ({
   vulnId: generateShortId(),  // Unique ID for this vulnerability (for file uploads)
   name: '',
@@ -27,10 +63,11 @@ export const EMPTY_VULNERABILITY = () => ({
   description: '',
   impact: '',
   remediation: '',
-  owasp_category: '',      // New: OWASP Top 10 classification
-  internal_notes: '',      // New: Internal notes (not exported)
-  endpoints: [EMPTY_ENDPOINT()],  // New structured endpoints
-  attacks:   [EMPTY_ATTACK()]     // New structured attacks (text or image)
+  owasp_category: '',      // OWASP Top 10 classification
+  cwe_references: [],      // CWE references (many-to-many)
+  internal_notes: '',      // Internal notes (not exported)
+  endpoints: [EMPTY_ENDPOINT()],  // Structured endpoints
+  attacks:   [EMPTY_ATTACK()]     // Structured attacks (text or image)
 });
 
 const BLANK_FORM = () => ({
@@ -211,6 +248,7 @@ export default function useReportForm() {
         vulnId: generateShortId(),  // Generate NEW unique ID for the duplicate
         name: vulnToCopy.name + ' (Copy)',
         // Deep copy arrays to avoid reference issues
+        cwe_references: (vulnToCopy.cwe_references || []).map(c => ({...c})),
         endpoints: vulnToCopy.endpoints.map(e => ({...e})),
         attacks: vulnToCopy.attacks.map(a => ({...a}))
       };
@@ -262,6 +300,50 @@ export default function useReportForm() {
         ...vulnerabilities[vulnIndex],
         [field]: vulnerabilities[vulnIndex][field].filter((_, i) => i !== itemIndex)
       };
+      return { ...prev, vulnerabilities };
+    });
+  }, []);
+
+  // =========================================================================
+  // CWE References
+  // =========================================================================
+  const addCweReference = useCallback((vulnIndex) => {
+    setFormData(prev => {
+      const vulnerabilities = [...prev.vulnerabilities];
+      vulnerabilities[vulnIndex] = {
+        ...vulnerabilities[vulnIndex],
+        cwe_references: [
+          ...(vulnerabilities[vulnIndex].cwe_references || []),
+          EMPTY_CWE_REFERENCE()
+        ]
+      };
+      return { ...prev, vulnerabilities };
+    });
+  }, []);
+
+  const removeCweReference = useCallback((vulnIndex, cweIndex) => {
+    setFormData(prev => {
+      const vulnerabilities = [...prev.vulnerabilities];
+      vulnerabilities[vulnIndex] = {
+        ...vulnerabilities[vulnIndex],
+        cwe_references: vulnerabilities[vulnIndex].cwe_references.filter((_, i) => i !== cweIndex)
+      };
+      return { ...prev, vulnerabilities };
+    });
+  }, []);
+
+  const handleCweChange = useCallback((vulnIndex, cweIndex, field, value) => {
+    setFormData(prev => {
+      const vulnerabilities = [...prev.vulnerabilities];
+      const cweRefs = [...(vulnerabilities[vulnIndex].cwe_references || [])];
+      if (field === 'cwe_id') {
+        // Auto-derive name and url whenever the ID changes
+        const { cwe_id, cwe_name, cwe_url } = cweIdToRef(value);
+        cweRefs[cweIndex] = { ...cweRefs[cweIndex], cwe_id, cwe_name, cwe_url };
+      } else {
+        cweRefs[cweIndex] = { ...cweRefs[cweIndex], [field]: value };
+      }
+      vulnerabilities[vulnIndex] = { ...vulnerabilities[vulnIndex], cwe_references: cweRefs };
       return { ...prev, vulnerabilities };
     });
   }, []);
@@ -397,6 +479,14 @@ export default function useReportForm() {
         cvss_vector: v.cvss_vector || v.cvssVector || '',
         owasp_category: v.owasp_category || '',  // new field
         internal_notes: v.internal_notes || '',  // new field
+        cwe_references: Array.isArray(v.cwe_references)
+          ? v.cwe_references.map(c => {
+              // Derive cwe_id from stored cwe_name ("CWE-89: …" → "89") for backward compat
+              const idMatch = (c.cwe_name || '').match(/(\d+)/);
+              const id = c.cwe_id || (idMatch ? idMatch[1] : '');
+              return { cwe_id: id, cwe_name: c.cwe_name || '', cwe_url: c.cwe_url || '' };
+            })
+          : [],
         endpoints:   ensureEndpoints(v.endpoints),
         attacks:     ensureAttacks(v.attacks)
       }))
@@ -459,15 +549,20 @@ export default function useReportForm() {
     
     // Prepare template data (exclude endpoints and attacks)
     const templateData = {
-      name: templateName.trim(),
-      severity: vuln.severity || '',
-      priority: vuln.priority || '',
-      cvss_score: vuln.cvss_score || '',
-      cvss_vector: vuln.cvss_vector || '',
-      description: vuln.description || '',
-      impact: vuln.impact || '',
-      remediation: vuln.remediation || '',
-      owasp_category: vuln.owasp_category || ''
+      name:           templateName.trim(),
+      severity:       vuln.severity       || '',
+      priority:       vuln.priority       || '',
+      cvss_score:     vuln.cvss_score     || '',
+      cvss_vector:    vuln.cvss_vector    || '',
+      description:    vuln.description    || '',
+      impact:         vuln.impact         || '',
+      remediation:    vuln.remediation    || '',
+      owasp_category: vuln.owasp_category || '',
+      cwe_references: Array.isArray(vuln.cwe_references)
+        ? vuln.cwe_references.filter(c => c.cwe_id || c.cwe_name)
+            .map(c => ({ cwe_name: c.cwe_name, cwe_url: c.cwe_url }))
+        : [],
+      internal_notes: vuln.internal_notes || ''
     };
     
     try {
@@ -515,15 +610,23 @@ export default function useReportForm() {
         vulnerabilities[vulnIndex] = {
           ...vulnerabilities[vulnIndex],
           // Preserve vulnId - do NOT overwrite it with template data
-          name: template.name || vulnerabilities[vulnIndex].name,
-          severity: template.severity || '',
-          priority: template.priority || '',
-          cvss_score: template.cvss_score || '',
-          cvss_vector: template.cvss_vector || '',
-          description: template.description || '',
-          impact: template.impact || '',
-          remediation: template.remediation || '',
-          owasp_category: template.owasp_category || ''
+          name:           template.name || vulnerabilities[vulnIndex].name,
+          severity:       template.severity       || '',
+          priority:       template.priority       || '',
+          cvss_score:     template.cvss_score     || '',
+          cvss_vector:    template.cvss_vector    || '',
+          description:    template.description    || '',
+          impact:         template.impact         || '',
+          remediation:    template.remediation    || '',
+          owasp_category: template.owasp_category || '',
+          cwe_references: Array.isArray(template.cwe_references)
+            ? template.cwe_references.map(c => {
+                const idMatch = (c.cwe_name || '').match(/(\d+)/);
+                const id = c.cwe_id || (idMatch ? idMatch[1] : '');
+                return { cwe_id: id, cwe_name: c.cwe_name || '', cwe_url: c.cwe_url || '' };
+              })
+            : [],
+          internal_notes: template.internal_notes || ''
           // Keep existing endpoints, attacks, and vulnId
         };
         return { ...prev, vulnerabilities };
@@ -562,6 +665,7 @@ export default function useReportForm() {
     addTester, removeTester, handleTesterChange,
     addVulnerability, removeVulnerability, duplicateVulnerability, handleVulnChange,
     addVulnArrayItem, removeVulnArrayItem,
+    addCweReference, removeCweReference, handleCweChange,
     handleEndpointChange, handleAttackChange,
     handleImageUpload, removeAttack,
     saveAsTemplate, loadTemplate,

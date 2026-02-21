@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Repotr Generator - Docker Image Build & Export Script
+# Report Generator - Docker Image Build & Export Script
 # This script builds the Docker image and exports it for sharing
 
 set -e  # Exit on error
@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 IMAGE_NAME="report-generator"
-IMAGE_TAG="v1.0"
+IMAGE_TAG="v1.1"
 EXPORT_FILE="report-generator-image.tar.gz"
 
 # Check if we're in the right directory
@@ -127,16 +127,16 @@ echo "   2. Export file: ${EXPORT_FILE} (${EXPORT_SIZE})"
 echo ""
 echo "📋 Next steps:"
 echo "   1. Test locally (optional):"
-echo "      docker-compose -f docker-compose-image.yml up -d"
+echo "      docker compose -f docker-compose-image.yml up -d"
 echo ""
 echo "   2. Share with friends:"
 echo "      - ${EXPORT_FILE}"
 echo "      - docker-compose-image.yml"
-echo "      - DEPLOYMENT_GUIDE_FOR_FRIENDS_IMAGE.md"
+echo "      - guida.md"
 echo ""
 echo "🎯 Friends will run:"
 echo "   docker load -i ${EXPORT_FILE}"
-echo "   docker-compose -f docker-compose-image.yml up -d"
+echo "   docker compose -f docker-compose-image.yml up -d"
 echo ""
 echo "✨ No source code exposed, just the Docker image!"
 echo ""

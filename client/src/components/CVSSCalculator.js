@@ -1,59 +1,70 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './CVSSCalculator.css';
 
+// ---------------------------------------------------------------------------
+// Utility: parse a CVSS vector string into a metrics object
+// ---------------------------------------------------------------------------
+const parseVector = (vectorString) => {
+  if (!vectorString || vectorString.trim().length === 0) return null;
+
+  // Strip prefix: "CVSS:3.1/" or "CVSS 3.1: /" etc.
+  const stripped = vectorString.replace(/^CVSS[:\s]*3\.1[:\s]*\/?/i, '');
+  const parts = stripped.split('/').filter(p => p.trim().length > 0);
+  const parsed = {};
+  parts.forEach(part => {
+    const [key, value] = part.split(':');
+    if (key && value && key.trim() && value.trim()) {
+      parsed[key.trim()] = value.trim();
+    }
+  });
+  return Object.keys(parsed).length > 0 ? parsed : null;
+};
+
+const DEFAULT_METRICS = {
+  AV: 'N',
+  AC: 'L',
+  PR: 'N',
+  UI: 'N',
+  S: 'U',
+  C: 'H',
+  I: 'H',
+  A: 'H'
+};
+
 const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }) => {
-  const [metrics, setMetrics] = useState({
-    AV: 'N',  // Attack Vector
-    AC: 'L',  // Attack Complexity
-    PR: 'N',  // Privileges Required
-    UI: 'N',  // User Interaction
-    S: 'U',   // Scope
-    C: 'H',   // Confidentiality Impact
-    I: 'H',   // Integrity Impact
-    A: 'H'    // Availability Impact
+  // Initialise metrics synchronously from initialVector so they are correct
+  // on the very first render – no race condition with onScoreUpdate.
+  const [metrics, setMetrics] = useState(() => {
+    const parsed = parseVector(initialVector);
+    return parsed ? { ...DEFAULT_METRICS, ...parsed } : { ...DEFAULT_METRICS };
   });
 
   const [score, setScore] = useState(0);
   const [severity, setSeverity] = useState('');
-  const isInitializing = useRef(true);
-  const previousVector = useRef('');
 
-  // Parse initial CVSS vector whenever it changes
+  // Track whether the component has finished its first render cycle so we
+  // can suppress the onScoreUpdate call that fires from the initial metrics
+  // effect (we don't want to overwrite the parent's already-correct values).
+  const mountedRef = useRef(false);
+  const previousVector = useRef(initialVector);
+  // The last CVSS vector string this component itself emitted via onScoreUpdate.
+  // Used to detect the echo-back: parent stores the vector we sent, passes it
+  // back as initialVector, which would otherwise trigger a re-parse loop.
+  const lastEmittedVector = useRef('');
+
+  // Re-parse only when initialVector is a genuine external change – not an
+  // echo-back of the vector we ourselves just emitted via onScoreUpdate.
   useEffect(() => {
-    // Support multiple CVSS vector formats
-    if (initialVector && initialVector.length > 0 && initialVector !== previousVector.current) {
-      previousVector.current = initialVector;
-      
-      // Extract the vector part - handle different formats:
-      // Format 1: "CVSS:3.1/AV:N/AC:L/..."
-      // Format 2: "CVSS 3.1: /AV:N/AC:L/..."
-      // Format 3: "/AV:N/AC:L/..." (just the vector part)
-      let vectorString = initialVector;
-      
-      // Remove "CVSS:3.1/" or "CVSS 3.1: /" prefix if present
-      vectorString = vectorString.replace(/^CVSS[:\s]*3\.1[:\s]*\/?/i, '');
-      
-      // Now parse the vector parts
-      const vectorParts = vectorString.split('/').filter(part => part.trim().length > 0);
-      const parsedMetrics = {};
-      
-      vectorParts.forEach(part => {
-        const [key, value] = part.split(':');
-        if (key && value && key.trim() && value.trim()) {
-          parsedMetrics[key.trim()] = value.trim();
-        }
-      });
-      
-      if (Object.keys(parsedMetrics).length > 0) {
-        setMetrics(prev => ({ ...prev, ...parsedMetrics }));
-      }
-    }
-    
-    // Mark initialization as complete after first render
-    if (isInitializing.current) {
-      setTimeout(() => {
-        isInitializing.current = false;
-      }, 100);
+    if (initialVector === previousVector.current) return;
+    previousVector.current = initialVector;
+
+    const normIncoming = (initialVector || '').trim().toUpperCase();
+    const normEmitted  = (lastEmittedVector.current || '').trim().toUpperCase();
+    if (normIncoming && normIncoming === normEmitted) return; // echo-back, skip
+
+    const parsed = parseVector(initialVector);
+    if (parsed) {
+      setMetrics(prev => ({ ...prev, ...parsed }));
     }
   }, [initialVector]);
 
@@ -62,16 +73,16 @@ const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }
     AV: {
       label: 'Attack Vector (AV)',
       options: {
-        'N': { label: 'Network', value: 0.85, desc: 'Exploitable remotely' },
-        'A': { label: 'Adjacent', value: 0.62, desc: 'Adjacent network access required' },
-        'L': { label: 'Local', value: 0.55, desc: 'Local access required' },
-        'P': { label: 'Physical', value: 0.20, desc: 'Physical access required' }
+        'N': { label: 'Network',   value: 0.85, desc: 'Exploitable remotely' },
+        'A': { label: 'Adjacent',  value: 0.62, desc: 'Adjacent network access required' },
+        'L': { label: 'Local',     value: 0.55, desc: 'Local access required' },
+        'P': { label: 'Physical',  value: 0.20, desc: 'Physical access required' }
       }
     },
     AC: {
       label: 'Attack Complexity (AC)',
       options: {
-        'L': { label: 'Low', value: 0.77, desc: 'No special conditions' },
+        'L': { label: 'Low',  value: 0.77, desc: 'No special conditions' },
         'H': { label: 'High', value: 0.44, desc: 'Special conditions required' }
       }
     },
@@ -79,14 +90,14 @@ const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }
       label: 'Privileges Required (PR)',
       options: {
         'N': { label: 'None', value: 0.85, valueChanged: 0.85, desc: 'No privileges required' },
-        'L': { label: 'Low', value: 0.62, valueChanged: 0.68, desc: 'Low privileges required' },
+        'L': { label: 'Low',  value: 0.62, valueChanged: 0.68, desc: 'Low privileges required' },
         'H': { label: 'High', value: 0.27, valueChanged: 0.50, desc: 'High privileges required' }
       }
     },
     UI: {
       label: 'User Interaction (UI)',
       options: {
-        'N': { label: 'None', value: 0.85, desc: 'No user interaction' },
+        'N': { label: 'None',     value: 0.85, desc: 'No user interaction' },
         'R': { label: 'Required', value: 0.62, desc: 'User interaction required' }
       }
     },
@@ -94,14 +105,14 @@ const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }
       label: 'Scope (S)',
       options: {
         'U': { label: 'Unchanged', desc: 'Scope unchanged' },
-        'C': { label: 'Changed', desc: 'Scope changed' }
+        'C': { label: 'Changed',   desc: 'Scope changed' }
       }
     },
     C: {
       label: 'Confidentiality Impact (C)',
       options: {
         'H': { label: 'High', value: 0.56, desc: 'Total information disclosure' },
-        'L': { label: 'Low', value: 0.22, desc: 'Some information disclosed' },
+        'L': { label: 'Low',  value: 0.22, desc: 'Some information disclosed' },
         'N': { label: 'None', value: 0.00, desc: 'No impact' }
       }
     },
@@ -109,7 +120,7 @@ const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }
       label: 'Integrity Impact (I)',
       options: {
         'H': { label: 'High', value: 0.56, desc: 'Total compromise of integrity' },
-        'L': { label: 'Low', value: 0.22, desc: 'Some integrity compromise' },
+        'L': { label: 'Low',  value: 0.22, desc: 'Some integrity compromise' },
         'N': { label: 'None', value: 0.00, desc: 'No impact' }
       }
     },
@@ -117,109 +128,78 @@ const CVSSCalculator = ({ onScoreUpdate, initialVector = '', initialScore = '' }
       label: 'Availability Impact (A)',
       options: {
         'H': { label: 'High', value: 0.56, desc: 'Total loss of availability' },
-        'L': { label: 'Low', value: 0.22, desc: 'Reduced availability' },
+        'L': { label: 'Low',  value: 0.22, desc: 'Reduced availability' },
         'N': { label: 'None', value: 0.00, desc: 'No impact' }
       }
     }
   };
 
-  // Calculate CVSS 3.1 score
   const calculateScore = useCallback((metricsToUse) => {
-    // Exploitability metrics
     const AV = metricDefinitions.AV.options[metricsToUse.AV].value;
     const AC = metricDefinitions.AC.options[metricsToUse.AC].value;
-    
-    // PR value depends on scope
-    let PR;
-    if (metricsToUse.S === 'U') {
-      PR = metricDefinitions.PR.options[metricsToUse.PR].value;
-    } else {
-      PR = metricDefinitions.PR.options[metricsToUse.PR].valueChanged;
-    }
-    
+    const PR = metricsToUse.S === 'U'
+      ? metricDefinitions.PR.options[metricsToUse.PR].value
+      : metricDefinitions.PR.options[metricsToUse.PR].valueChanged;
     const UI = metricDefinitions.UI.options[metricsToUse.UI].value;
+    const C  = metricDefinitions.C.options[metricsToUse.C].value;
+    const I  = metricDefinitions.I.options[metricsToUse.I].value;
+    const A  = metricDefinitions.A.options[metricsToUse.A].value;
 
-    // Impact metrics
-    const C = metricDefinitions.C.options[metricsToUse.C].value;
-    const I = metricDefinitions.I.options[metricsToUse.I].value;
-    const A = metricDefinitions.A.options[metricsToUse.A].value;
-
-    // Calculate Impact Sub Score (ISS)
     const ISS = 1 - ((1 - C) * (1 - I) * (1 - A));
-
-    // Calculate Impact
-    let impact;
-    if (metricsToUse.S === 'U') {
-      impact = 6.42 * ISS;
-    } else {
-      impact = 7.52 * (ISS - 0.029) - 3.25 * Math.pow(ISS - 0.02, 15);
-    }
-
-    // Calculate Exploitability
+    const impact = metricsToUse.S === 'U'
+      ? 6.42 * ISS
+      : 7.52 * (ISS - 0.029) - 3.25 * Math.pow(ISS - 0.02, 15);
     const exploitability = 8.22 * AV * AC * PR * UI;
 
-    // Calculate Base Score
-    let baseScore;
-    if (impact <= 0) {
-      baseScore = 0;
-    } else {
-      if (metricsToUse.S === 'U') {
-        baseScore = Math.min(impact + exploitability, 10);
-      } else {
-        baseScore = Math.min(1.08 * (impact + exploitability), 10);
-      }
-    }
+    if (impact <= 0) return 0;
+    const raw = metricsToUse.S === 'U'
+      ? Math.min(impact + exploitability, 10)
+      : Math.min(1.08 * (impact + exploitability), 10);
+    return Math.ceil(raw * 10) / 10;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Round up to one decimal
-    baseScore = Math.ceil(baseScore * 10) / 10;
-
-    return baseScore;
-  }, []);
-
-  // Get severity rating based on score
-  const getSeverity = useCallback((score) => {
-    if (score === 0) return 'Informativa';
-    if (score >= 0.1 && score <= 3.9) return 'Bassa';
-    if (score >= 4.0 && score <= 6.9) return 'Media';
-    if (score >= 7.0 && score <= 8.9) return 'Alta';
-    if (score >= 9.0 && score <= 10.0) return 'Critica';
+  const getSeverity = useCallback((s) => {
+    if (s === 0)              return 'Informativa';
+    if (s <= 3.9)             return 'Bassa';
+    if (s <= 6.9)             return 'Media';
+    if (s <= 8.9)             return 'Alta';
+    if (s <= 10.0)            return 'Critica';
     return '';
   }, []);
 
-  // Update score when metrics change - but NOT during initialization
+  // Recalculate whenever metrics change; notify parent only after mount.
   useEffect(() => {
-    const newScore = calculateScore(metrics);
+    const newScore    = calculateScore(metrics);
     const newSeverity = getSeverity(newScore);
-    
     setScore(newScore);
     setSeverity(newSeverity);
 
-    // Generate CVSS vector string in standard format
     const vector = `CVSS:3.1/AV:${metrics.AV}/AC:${metrics.AC}/PR:${metrics.PR}/UI:${metrics.UI}/S:${metrics.S}/C:${metrics.C}/I:${metrics.I}/A:${metrics.A}`;
-    
-    // Only notify parent component if we're not initializing
-    // This prevents overwriting existing values when editing a report
-    if (onScoreUpdate && !isInitializing.current) {
-      onScoreUpdate({
-        score: newScore.toFixed(1),
-        severity: newSeverity,
-        vector: vector
-      });
+
+    if (mountedRef.current && onScoreUpdate) {
+      lastEmittedVector.current = vector; // record so echo-back is ignored
+      onScoreUpdate({ score: newScore.toFixed(1), severity: newSeverity, vector });
     }
   }, [metrics, calculateScore, getSeverity, onScoreUpdate]);
+
+  // Mark component as mounted after the first effect cycle completes.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const handleMetricChange = (metric, value) => {
     setMetrics(prev => ({ ...prev, [metric]: value }));
   };
 
   const getSeverityClass = (sev) => {
-    switch(sev) {
-      case 'Critica': return 'severity-critical';
-      case 'Alta': return 'severity-high';
-      case 'Media': return 'severity-medium';
-      case 'Bassa': return 'severity-low';
+    switch (sev) {
+      case 'Critica':    return 'severity-critical';
+      case 'Alta':       return 'severity-high';
+      case 'Media':      return 'severity-medium';
+      case 'Bassa':      return 'severity-low';
       case 'Informativa': return 'severity-info';
-      default: return '';
+      default:           return '';
     }
   };
 

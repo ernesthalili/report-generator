@@ -8,7 +8,11 @@ const { protect } = require('../middleware/auth');
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL = 'llama-3.1-8b-instant';
+const GROQ_MODELS = {
+  fast:     'llama-3.1-8b-instant',      // Faster, lighter (default)
+  powerful: 'llama-3.3-70b-versatile'    // More capable, slower
+};
+const DEFAULT_MODEL = GROQ_MODELS.fast;
 
 // Rate limiting: 1 request per 2 seconds per user
 const userRateLimits = new Map(); // userId -> { lastRequest: timestamp }
@@ -150,18 +154,12 @@ Preserve all placeholder tokens (like IP_0, EMAIL_1, etc.) exactly as they appea
 
   // Default prompts for standard actions
   const prompts = {
-    grammar: `You are a professional text editor. Fix any grammar, spelling, and punctuation errors in the text. 
-Maintain the original meaning and technical terminology. Do not add new information or change the structure significantly.
-Preserve all placeholder tokens (like IP_0, EMAIL_1, etc.) exactly as they appear.`,
+    grammar: `Fix any grammar, spelling, and punctuation errors in the text. 
+Maintain the original meaning and technical terminology. Do not add new information or change the structure significantly. Preserve all placeholder tokens exactly as they appear. Respond with only the correct form.`,
     
-    professional: `You are a professional cybersecurity report writer. Rewrite the text in a professional, formal tone 
-suitable for a penetration testing report. Maintain technical accuracy and all key information.
-Preserve all placeholder tokens (like IP_0, EMAIL_1, etc.) exactly as they appear.`,
+    professional: `Give me an improved version of this text in a professional, formal tone suitable for a penetration testing report. Maintain technical accuracy and all key information.Preserve all placeholder tokens exactly as they appear. Give me only the text block to replace. Be clear and brief. Do not add remediation or impact unless present on the description.`,
     
-    technical: `You are a senior penetration tester. Enhance the text by adding relevant technical details, 
-such as CVE references, attack vectors, technical explanations, and security implications. 
-Keep the enhancement concise and focused on technical accuracy.
-Preserve all placeholder tokens (like IP_0, EMAIL_1, etc.) exactly as they appear.`
+    technical: `Enhance the text by adding some small technical details, technical explanations. Keep the enhancement concise and focused on technical accuracy. Preserve all placeholder tokens exactly as they appear. Do not add remediation or impact unless present on the description.`
   };
   
   return prompts[action] || prompts.grammar;
@@ -174,7 +172,7 @@ Preserve all placeholder tokens (like IP_0, EMAIL_1, etc.) exactly as they appea
  * @param {string} customPrompt - Optional custom prompt
  * @returns {Promise<string>} Enhanced text
  */
-async function enhanceWithGroq(text, action, customPrompt = null) {
+async function enhanceWithGroq(text, action, customPrompt = null, model = DEFAULT_MODEL) {
   if (!GROQ_API_KEY) {
     throw new Error('GROQ_API_KEY not configured');
   }
@@ -182,7 +180,7 @@ async function enhanceWithGroq(text, action, customPrompt = null) {
   const systemPrompt = getSystemPrompt(action, customPrompt);
   
   const requestBody = {
-    model: GROQ_MODEL,
+    model: model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: text }
@@ -315,7 +313,12 @@ function saveToCache(key, value) {
  */
 router.post('/enhance-text', protect, async (req, res) => {
   try {
-    const { text, action, customPrompt } = req.body;
+    const { text, action, customPrompt, model } = req.body;
+    // selectedModelKey is the short key ('fast' | 'powerful') — used in the response so the
+    // frontend badge comparison (modelUsed === 'fast') works correctly.
+    // selectedModel is the full Groq model string sent to the API.
+    const selectedModelKey = (model && GROQ_MODELS[model]) ? model : 'fast';
+    const selectedModel = GROQ_MODELS[selectedModelKey];
     
     // Validation
     if (!text || typeof text !== 'string') {
@@ -363,7 +366,7 @@ router.post('/enhance-text', protect, async (req, res) => {
     }
     
     // Check cache first
-    const cacheKey = getCacheKey(text + (customPrompt || ''), action);
+    const cacheKey = getCacheKey(text + (customPrompt || '') + (selectedModel), action);
     const cachedResult = getFromCache(cacheKey);
     
     if (cachedResult) {
@@ -372,12 +375,13 @@ router.post('/enhance-text', protect, async (req, res) => {
         enhanced: cachedResult,
         cached: true,
         masked_items: 0,
-        detected_types: []
+        detected_types: [],
+        model_used: selectedModelKey
       });
     }
     
     // Enhance with Groq AI
-    const enhancedText = await enhanceWithGroq(text, action, customPrompt);
+    const enhancedText = await enhanceWithGroq(text, action, customPrompt, selectedModel);
     
     // Save to cache
     saveToCache(cacheKey, enhancedText);
@@ -388,7 +392,8 @@ router.post('/enhance-text', protect, async (req, res) => {
       enhanced: enhancedText,
       cached: false,
       masked_items: 0,
-      detected_types: []
+      detected_types: [],
+      model_used: selectedModelKey
     });
     
   } catch (error) {
@@ -458,6 +463,21 @@ router.post('/preview-mask', protect, async (req, res) => {
       message: 'Failed to preview masking'
     });
   }
+});
+
+/**
+ * GET /api/ai/models
+ * Returns the list of available AI models
+ */
+router.get('/models', protect, (req, res) => {
+  res.json({
+    success: true,
+    models: [
+      { key: 'fast',     name: 'Llama 3.1 8B (Fast)',        description: 'Faster responses, ideal for grammar and quick edits' },
+      { key: 'powerful', name: 'Llama 3.3 70B (Powerful)',   description: 'Higher quality output, ideal for technical/professional rewrites' }
+    ],
+    default: 'fast'
+  });
 });
 
 module.exports = router;

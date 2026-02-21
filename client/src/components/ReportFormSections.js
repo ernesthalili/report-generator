@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import CVSSCalculator from './CVSSCalculator';
 import TemplateSelector from './TemplateSelector';
 import axios from 'axios';
+import { cweIdToRef, fetchCweTitle } from '../hooks/useReportForm';
 
 // ============================================================================
 // AI ENHANCEMENT - UTILITY FUNCTIONS (Client-side masking)
@@ -89,7 +90,7 @@ function unmaskText(maskedText, maskMap) {
 /**
  * AI Result Modal - matches TemplateManager style
  */
-function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult }) {
+function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult, modelUsed }) {
   const [editedResult, setEditedResult] = useState(aiResult);
 
   React.useEffect(() => {
@@ -108,7 +109,14 @@ function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult }) {
     <div className="template-manager-overlay" onClick={onClose}>
       <div className="ai-enhancement-modal" onClick={(e) => e.stopPropagation()}>
         <div className="template-manager-header">
-          <h2>✨ AI Enhancement Result</h2>
+          <div className="ai-result-header-left">
+            <h2>✨ AI Enhancement Result</h2>
+            {modelUsed && (
+              <span className={`ai-model-badge ${modelUsed === 'fast' ? 'ai-model-badge--fast' : 'ai-model-badge--powerful'}`}>
+                {modelUsed === 'fast' ? '⚡ Fast (8B)' : '🧠 Powerful (70B)'}
+              </span>
+            )}
+          </div>
           <button onClick={onClose} className="btn btn-sm btn-secondary">✕ Close</button>
         </div>
         
@@ -162,10 +170,15 @@ function AIResultModal({ isOpen, onClose, onApply, originalText, aiResult }) {
  */
 function AIPreviewModal({ isOpen, onClose, onConfirm, originalText, maskedText, detectedTypes, action, customPrompt }) {
   const [editedMaskedText, setEditedMaskedText] = useState(maskedText);
+  const [editedCustomPrompt, setEditedCustomPrompt] = useState(customPrompt || '');
 
   React.useEffect(() => {
     setEditedMaskedText(maskedText);
   }, [maskedText]);
+
+  React.useEffect(() => {
+    setEditedCustomPrompt(customPrompt || '');
+  }, [customPrompt]);
 
   if (!isOpen) return null;
 
@@ -177,7 +190,7 @@ function AIPreviewModal({ isOpen, onClose, onConfirm, originalText, maskedText, 
   };
 
   const handleConfirm = () => {
-    onConfirm(editedMaskedText, customPrompt);
+    onConfirm(editedMaskedText, action === 'custom' ? editedCustomPrompt : customPrompt);
   };
 
   return ReactDOM.createPortal(
@@ -194,10 +207,16 @@ function AIPreviewModal({ isOpen, onClose, onConfirm, originalText, maskedText, 
             <div className="ai-modal-field-value">{actionLabels[action] || action}</div>
           </div>
 
-          {action === 'custom' && customPrompt && (
+          {action === 'custom' && (
             <div className="ai-modal-field">
-              <label className="ai-modal-field-label">Custom Instruction:</label>
-              <div className="ai-modal-field-value">{customPrompt}</div>
+              <label className="ai-modal-field-label">Custom Instruction: <span className="ai-modal-editable-hint">(editable)</span></label>
+              <textarea
+                className="ai-modal-textarea ai-modal-textarea--compact"
+                value={editedCustomPrompt}
+                onChange={(e) => setEditedCustomPrompt(e.target.value)}
+                rows="3"
+                placeholder="Enter your custom instruction..."
+              />
             </div>
           )}
 
@@ -251,7 +270,7 @@ function AIPreviewModal({ isOpen, onClose, onConfirm, originalText, maskedText, 
 /**
  * Button with dropdown menu for AI enhancement actions
  */
-function AIEnhanceButton({ text, onEnhance, disabled, savedPrompts, onSavePrompt }) {
+function AIEnhanceButton({ text, onEnhance, disabled, savedPrompts, onSavePrompt, onDeletePrompt, selectedModel, onModelChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
@@ -298,7 +317,7 @@ function AIEnhanceButton({ text, onEnhance, disabled, savedPrompts, onSavePrompt
   const handleConfirmEnhance = (editedMaskedText, customPromptText) => {
     setShowPreview(false);
     if (previewData) {
-      onEnhance(previewData.action, editedMaskedText, customPromptText, previewData.maskMap);
+      onEnhance(previewData.action, editedMaskedText, customPromptText, previewData.maskMap, selectedModel);
       
       // Save custom prompt if provided and not already saved
       if (customPromptText && !savedPrompts.includes(customPromptText)) {
@@ -317,139 +336,94 @@ function AIEnhanceButton({ text, onEnhance, disabled, savedPrompts, onSavePrompt
     setCustomPrompt('');
   };
 
+  const isDisabled = disabled || !text || text.trim().length === 0;
+
   return (
     <>
-      <div className="ai-enhance-dropdown">
-        <button
-          type="button"
-          className="btn btn-sm btn-ai"
-          onClick={() => setIsOpen(!isOpen)}
-          disabled={disabled || !text || text.trim().length === 0}
-          title="Enhance with AI"
-        >
-          ✨ Enhance
-        </button>
-        
-        {isOpen && (
-          <div className="ai-dropdown-menu">
-            <button
-              type="button"
-              className="ai-dropdown-item"
-              onClick={() => handleActionSelect('grammar')}
-            >
-              <span className="ai-dropdown-icon">✓</span>
-              <div>
-                <div className="ai-dropdown-title">Fix Grammar</div>
-                <div className="ai-dropdown-desc">Correct spelling & punctuation</div>
-              </div>
-            </button>
-            
-            <button
-              type="button"
-              className="ai-dropdown-item"
-              onClick={() => handleActionSelect('professional')}
-            >
-              <span className="ai-dropdown-icon">📝</span>
-              <div>
-                <div className="ai-dropdown-title">Make Professional</div>
-                <div className="ai-dropdown-desc">Formal, report-ready tone</div>
-              </div>
-            </button>
-            
-            <button
-              type="button"
-              className="ai-dropdown-item"
-              onClick={() => handleActionSelect('technical')}
-            >
-              <span className="ai-dropdown-icon">🔧</span>
-              <div>
-                <div className="ai-dropdown-title">Add Technical Details</div>
-                <div className="ai-dropdown-desc">CVEs, vectors, explanations</div>
-              </div>
-            </button>
+      {/* ── Micro-toolbar ── */}
+      <div className={`ai-toolbar${isDisabled ? ' ai-toolbar--disabled' : ''}`}>
 
-            <div className="ai-dropdown-divider"></div>
-            
+        {/* Model toggle: blue=fast, violet=powerful */}
+        <div className="ai-toolbar-model">
+          <button
+            type="button"
+            className={`ai-toolbar-model-btn${selectedModel === 'fast' ? ' ai-toolbar-model-btn--active-fast' : ''}`}
+            onClick={() => !isDisabled && onModelChange('fast')}
+            disabled={isDisabled}
+            title="Fast — Llama 3.1 8B"
+          >⚡ Fast</button>
+          <button
+            type="button"
+            className={`ai-toolbar-model-btn${selectedModel === 'powerful' ? ' ai-toolbar-model-btn--active-powerful' : ''}`}
+            onClick={() => !isDisabled && onModelChange('powerful')}
+            disabled={isDisabled}
+            title="Powerful — Llama 3.3 70B"
+          >🧠 Powerful</button>
+        </div>
+
+        {/* Divider */}
+        <span className="ai-toolbar-sep" />
+
+        {/* Action buttons */}
+        <button type="button" className="ai-toolbar-action" onClick={() => !isDisabled && handleActionSelect('grammar')}    disabled={isDisabled} title="Fix Grammar">✓ Grammar</button>
+        <button type="button" className="ai-toolbar-action" onClick={() => !isDisabled && handleActionSelect('professional')} disabled={isDisabled} title="Make Professional">📝 Pro</button>
+        <button type="button" className="ai-toolbar-action" onClick={() => !isDisabled && handleActionSelect('technical')}   disabled={isDisabled} title="Add Technical Details">🔧 Technical</button>
+
+        {/* Divider */}
+        <span className="ai-toolbar-sep" />
+
+        {/* Custom */}
+        <button type="button" className="ai-toolbar-action" onClick={() => !isDisabled && handleCustomSelect()} disabled={isDisabled} title="Custom prompt">✏️ Custom</button>
+
+        {/* Saved prompts */}
+        {savedPrompts.length > 0 && (
+          <div className="ai-toolbar-saved-wrap">
             <button
               type="button"
-              className="ai-dropdown-item"
-              onClick={handleCustomSelect}
-            >
-              <span className="ai-dropdown-icon">✏️</span>
-              <div>
-                <div className="ai-dropdown-title">Custom Prompt...</div>
-                <div className="ai-dropdown-desc">Write your own instruction</div>
-              </div>
-            </button>
+              className={`ai-toolbar-action${showSavedPrompts ? ' ai-toolbar-action--active' : ''}`}
+              onClick={() => !isDisabled && setShowSavedPrompts(!showSavedPrompts)}
+              disabled={isDisabled}
+              title={`Saved prompts (${savedPrompts.length})`}
+            >💾 {savedPrompts.length}</button>
 
-            {savedPrompts.length > 0 && (
-              <button
-                type="button"
-                className="ai-dropdown-item"
-                onClick={() => setShowSavedPrompts(!showSavedPrompts)}
-              >
-                <span className="ai-dropdown-icon">💾</span>
-                <div>
-                  <div className="ai-dropdown-title">Saved Prompts ({savedPrompts.length})</div>
-                  <div className="ai-dropdown-desc">Use a previously saved prompt</div>
+            {showSavedPrompts && (
+              <div className="ai-toolbar-saved-list">
+                <div className="ai-toolbar-saved-header">
+                  <span>Saved prompts</span>
+                  <button type="button" className="ai-toolbar-saved-close" onClick={() => setShowSavedPrompts(false)}>×</button>
                 </div>
-              </button>
+                {savedPrompts.map((prompt, idx) => (
+                  <div key={idx} className="ai-toolbar-saved-row">
+                    <button type="button" className="ai-toolbar-saved-item" onClick={() => handleSavedPromptSelect(prompt)} title={prompt}>
+                      {prompt.length > 44 ? prompt.substring(0, 44) + '…' : prompt}
+                    </button>
+                    <button
+                      type="button"
+                      className="ai-toolbar-saved-delete"
+                      onClick={(e) => { e.stopPropagation(); onDeletePrompt(idx); }}
+                      title="Delete this prompt"
+                    >×</button>
+                  </div>
+                ))}
+              </div>
             )}
-          </div>
-        )}
-
-        {showSavedPrompts && savedPrompts.length > 0 && (
-          <div className="ai-saved-prompts-list">
-            <div className="ai-saved-prompts-header">
-              <span>Saved Prompts</span>
-              <button 
-                type="button" 
-                className="ai-close-saved"
-                onClick={() => setShowSavedPrompts(false)}
-              >
-                ×
-              </button>
-            </div>
-            {savedPrompts.map((prompt, idx) => (
-              <button
-                key={idx}
-                type="button"
-                className="ai-saved-prompt-item"
-                onClick={() => handleSavedPromptSelect(prompt)}
-                title={prompt}
-              >
-                {prompt.length > 50 ? prompt.substring(0, 50) + '...' : prompt}
-              </button>
-            ))}
           </div>
         )}
       </div>
 
+      {/* Custom prompt inline input */}
       {showCustomInput && (
         <div className="ai-custom-prompt-input">
           <textarea
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
-            placeholder="Enter your custom enhancement instruction (e.g., 'Make this more concise' or 'Add OWASP references')"
-            rows="3"
+            placeholder="e.g. 'Make this more concise' or 'Add OWASP references'"
+            rows="2"
             autoFocus
           />
           <div className="ai-custom-prompt-actions">
-            <button
-              type="button"
-              className="btn btn-sm btn-secondary"
-              onClick={handleCancelCustom}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-primary"
-              onClick={handleCustomSubmit}
-              disabled={!customPrompt.trim()}
-            >
-              Continue
-            </button>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={handleCancelCustom}>Cancel</button>
+            <button type="button" className="btn btn-sm btn-primary"   onClick={handleCustomSubmit} disabled={!customPrompt.trim()}>Continue</button>
           </div>
         </div>
       )}
@@ -477,7 +451,7 @@ function AIEnhanceButton({ text, onEnhance, disabled, savedPrompts, onSavePrompt
 /**
  * Attacks section - text blocks now have AI enhancement
  */
-function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
+function AttacksSection({ vulnIndex, vuln, handlers, reportId, selectedModel, onModelChange }) {
   const { addVulnArrayItem, removeAttack, handleAttackChange, handleImageUpload } = handlers;
   const attacks = vuln.attacks || [];
   
@@ -502,7 +476,11 @@ function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
     }
   };
 
-  const handleEnhanceAttack = async (attackIdx, action, editedMaskedText, customPrompt, maskMap) => {
+  const handleDeletePrompt = (idx) => {
+    setSavedPrompts(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleEnhanceAttack = async (attackIdx, action, editedMaskedText, customPrompt, maskMap, model = 'fast') => {
     const enhanceKey = `${vulnIndex}-${attackIdx}`;
     setEnhancing(prev => ({ ...prev, [enhanceKey]: true }));
     setEnhanceError(null);
@@ -514,7 +492,8 @@ function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
       // Prepare request body based on action type
       const requestBody = {
         text: editedMaskedText,
-        action: action
+        action: action,
+        model: model
       };
 
       // Add custom prompt if provided
@@ -541,7 +520,8 @@ function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
         setResultData({
           originalText: attacks[attackIdx].text,
           aiResult: unmaskedResult,
-          attackIndex: attackIdx
+          attackIndex: attackIdx,
+          modelUsed: response.data.model_used || model
         });
         setShowResultModal(true);
       }
@@ -613,6 +593,7 @@ function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
           onApply={handleApplyResult}
           originalText={resultData.originalText}
           aiResult={resultData.aiResult}
+          modelUsed={resultData.modelUsed}
         />
       )}
 
@@ -657,10 +638,13 @@ function AttacksSection({ vulnIndex, vuln, handlers, reportId }) {
                   <div className="attack-ai-controls">
                     <AIEnhanceButton
                       text={attack.text}
-                      onEnhance={(action, editedText, customPrompt, maskMap) => handleEnhanceAttack(idx, action, editedText, customPrompt, maskMap)}
+                      onEnhance={(action, editedText, customPrompt, maskMap, model) => handleEnhanceAttack(idx, action, editedText, customPrompt, maskMap, model)}
                       disabled={isEnhancing}
                       savedPrompts={savedPrompts}
                       onSavePrompt={handleSavePrompt}
+                      onDeletePrompt={handleDeletePrompt}
+                      selectedModel={selectedModel}
+                      onModelChange={onModelChange}
                     />
                     
                     {isEnhancing && (
@@ -827,7 +811,10 @@ export function StaticFieldsSection({
   onEnhanceExecutiveSummary,
   isEnhancingExecutiveSummary,
   savedPrompts,
-  onSavePrompt
+  onSavePrompt,
+  onDeletePrompt,
+  selectedModel,
+  onModelChange
 }) {
   return (
     <section className="form-section">
@@ -894,6 +881,9 @@ export function StaticFieldsSection({
               disabled={isEnhancingExecutiveSummary}
               savedPrompts={savedPrompts}
               onSavePrompt={onSavePrompt}
+              onDeletePrompt={onDeletePrompt}
+              selectedModel={selectedModel}
+              onModelChange={onModelChange}
             />
             
             {isEnhancingExecutiveSummary && (
@@ -1168,6 +1158,9 @@ export function VulnerabilitiesSection({
   handleVulnChange,
   addVulnArrayItem,
   removeVulnArrayItem,
+  addCweReference,
+  removeCweReference,
+  handleCweChange,
   handleEndpointChange,
   handleAttackChange,
   handleImageUpload,
@@ -1175,9 +1168,13 @@ export function VulnerabilitiesSection({
   reportId,
   handleSaveAsTemplate,
   handleLoadTemplate,
-  moveVulnerability
+  moveVulnerability,
+  selectedModel,
+  onModelChange
 }) {
-  const [collapsedVulns, setCollapsedVulns] = useState({});
+  // expandedVulns: only entries explicitly set to true are expanded.
+  // Default {} means every vulnerability starts collapsed.
+  const [expandedVulns, setExpandedVulns] = useState({});
   
   // AI enhancement state for descriptions, impact, and remediation
   const [enhancingDesc, setEnhancingDesc] = useState({});
@@ -1191,7 +1188,7 @@ export function VulnerabilitiesSection({
   const [currentFieldType, setCurrentFieldType] = useState(null); // 'description', 'impact', 'remediation'
 
   const toggleCollapse = (index) => {
-    setCollapsedVulns(prev => ({
+    setExpandedVulns(prev => ({
       ...prev,
       [index]: !prev[index]
     }));
@@ -1228,7 +1225,11 @@ export function VulnerabilitiesSection({
     }
   };
 
-  const handleEnhanceDescription = async (vulnIndex, action, editedMaskedText, customPrompt, maskMap) => {
+  const handleDeletePrompt = (idx) => {
+    setSavedPrompts(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleEnhanceDescription = async (vulnIndex, action, editedMaskedText, customPrompt, maskMap, model = 'fast') => {
     setEnhancingDesc(prev => ({ ...prev, [vulnIndex]: true }));
     setEnhanceError(null);
     setCurrentVulnIndex(vulnIndex);
@@ -1239,7 +1240,8 @@ export function VulnerabilitiesSection({
       
       const requestBody = {
         text: editedMaskedText,
-        action: action
+        action: action,
+        model: model
       };
 
       if (action === 'custom' && customPrompt) {
@@ -1264,7 +1266,8 @@ export function VulnerabilitiesSection({
           originalText: formData.vulnerabilities[vulnIndex].description,
           aiResult: unmaskedResult,
           vulnIndex: vulnIndex,
-          fieldType: 'description'
+          fieldType: 'description',
+          modelUsed: response.data.model_used || model
         };
         
         setResultData(newResultData);
@@ -1283,7 +1286,7 @@ export function VulnerabilitiesSection({
     }
   };
 
-  const handleEnhanceImpact = async (vulnIndex, action, editedMaskedText, customPrompt, maskMap) => {
+  const handleEnhanceImpact = async (vulnIndex, action, editedMaskedText, customPrompt, maskMap, model = 'fast') => {
     setEnhancingImpact(prev => ({ ...prev, [vulnIndex]: true }));
     setEnhanceError(null);
     setCurrentVulnIndex(vulnIndex);
@@ -1294,7 +1297,8 @@ export function VulnerabilitiesSection({
       
       const requestBody = {
         text: editedMaskedText,
-        action: action
+        action: action,
+        model: model
       };
 
       if (action === 'custom' && customPrompt) {
@@ -1319,7 +1323,8 @@ export function VulnerabilitiesSection({
           originalText: formData.vulnerabilities[vulnIndex].impact,
           aiResult: unmaskedResult,
           vulnIndex: vulnIndex,
-          fieldType: 'impact'
+          fieldType: 'impact',
+          modelUsed: response.data.model_used || model
         });
         setShowResultModal(true);
       }
@@ -1336,7 +1341,7 @@ export function VulnerabilitiesSection({
     }
   };
 
-  const handleEnhanceRemediation = async (vulnIndex, action, editedMaskedText, customPrompt, maskMap) => {
+  const handleEnhanceRemediation = async (vulnIndex, action, editedMaskedText, customPrompt, maskMap, model = 'fast') => {
     setEnhancingRemediation(prev => ({ ...prev, [vulnIndex]: true }));
     setEnhanceError(null);
     setCurrentVulnIndex(vulnIndex);
@@ -1347,7 +1352,8 @@ export function VulnerabilitiesSection({
       
       const requestBody = {
         text: editedMaskedText,
-        action: action
+        action: action,
+        model: model
       };
 
       if (action === 'custom' && customPrompt) {
@@ -1372,7 +1378,8 @@ export function VulnerabilitiesSection({
           originalText: formData.vulnerabilities[vulnIndex].remediation,
           aiResult: unmaskedResult,
           vulnIndex: vulnIndex,
-          fieldType: 'remediation'
+          fieldType: 'remediation',
+          modelUsed: response.data.model_used || model
         });
         setShowResultModal(true);
       }
@@ -1436,6 +1443,7 @@ export function VulnerabilitiesSection({
           onApply={handleApplyResult}
           originalText={resultData.originalText}
           aiResult={resultData.aiResult}
+          modelUsed={resultData.modelUsed}
         />
       )}
 
@@ -1450,9 +1458,9 @@ export function VulnerabilitiesSection({
                   type="button"
                   onClick={() => toggleCollapse(vi)}
                   className="btn-collapse"
-                  title={collapsedVulns[vi] ? "Expand" : "Collapse"}
+                  title={expandedVulns[vi] ? "Collapse" : "Expand"}
                 >
-                  {collapsedVulns[vi] ? '▶' : '▼'}
+                  {expandedVulns[vi] ? '▼' : '▶'}
                 </button>
                 <h3>Vulnerability {vi + 1}: {vuln.name || 'Untitled'}</h3>
                 {vuln.severity && (
@@ -1519,7 +1527,7 @@ export function VulnerabilitiesSection({
               </div>
             </div>
 
-            {!collapsedVulns[vi] && (
+            {expandedVulns[vi] && (
               <>
                 {/* name */}
                 <div className="form-group">
@@ -1604,10 +1612,13 @@ export function VulnerabilitiesSection({
                     <div className="ai-controls-inline">
                       <AIEnhanceButton
                         text={vuln.description}
-                        onEnhance={(action, editedText, customPrompt, maskMap) => handleEnhanceDescription(vi, action, editedText, customPrompt, maskMap)}
+                        onEnhance={(action, editedText, customPrompt, maskMap, model) => handleEnhanceDescription(vi, action, editedText, customPrompt, maskMap, model)}
                         disabled={isEnhancingDesc}
                         savedPrompts={savedPrompts}
                         onSavePrompt={handleSavePrompt}
+                        onDeletePrompt={handleDeletePrompt}
+                        selectedModel={selectedModel}
+                        onModelChange={onModelChange}
                       />
                       
                       {isEnhancingDesc && (
@@ -1633,10 +1644,13 @@ export function VulnerabilitiesSection({
                     <div className="ai-controls-inline">
                       <AIEnhanceButton
                         text={vuln.impact}
-                        onEnhance={(action, editedText, customPrompt, maskMap) => handleEnhanceImpact(vi, action, editedText, customPrompt, maskMap)}
+                        onEnhance={(action, editedText, customPrompt, maskMap, model) => handleEnhanceImpact(vi, action, editedText, customPrompt, maskMap, model)}
                         disabled={enhancingImpact[vi]}
                         savedPrompts={savedPrompts}
                         onSavePrompt={handleSavePrompt}
+                        onDeletePrompt={handleDeletePrompt}
+                        selectedModel={selectedModel}
+                        onModelChange={onModelChange}
                       />
                       
                       {enhancingImpact[vi] && (
@@ -1662,10 +1676,13 @@ export function VulnerabilitiesSection({
                     <div className="ai-controls-inline">
                       <AIEnhanceButton
                         text={vuln.remediation}
-                        onEnhance={(action, editedText, customPrompt, maskMap) => handleEnhanceRemediation(vi, action, editedText, customPrompt, maskMap)}
+                        onEnhance={(action, editedText, customPrompt, maskMap, model) => handleEnhanceRemediation(vi, action, editedText, customPrompt, maskMap, model)}
                         disabled={enhancingRemediation[vi]}
                         savedPrompts={savedPrompts}
                         onSavePrompt={handleSavePrompt}
+                        onDeletePrompt={handleDeletePrompt}
+                        selectedModel={selectedModel}
+                        onModelChange={onModelChange}
                       />
                       
                       {enhancingRemediation[vi] && (
@@ -1684,6 +1701,81 @@ export function VulnerabilitiesSection({
                   />
                 </div>
 
+                {/* CWE References */}
+                <div className="form-group">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <label style={{ marginBottom: 0 }}>CWE References</label>
+                    <button type="button" onClick={() => addCweReference(vi)} className="btn btn-sm btn-secondary">
+                      + Add CWE
+                    </button>
+                  </div>
+                  {(vuln.cwe_references || []).length === 0 && (
+                    <p style={{ fontSize: '0.85em', color: '#888', margin: '4px 0 0' }}>
+                      No CWE references added yet.
+                    </p>
+                  )}
+                  {(vuln.cwe_references || []).map((cwe, ci) => (
+                    <div key={ci} style={{ marginBottom: '8px', padding: '10px', background: '#f5f8ff', border: '1px solid #d0dff8', borderRadius: '6px' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {/* Number input */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                          <span style={{ fontWeight: '600', whiteSpace: 'nowrap', fontSize: '0.9em' }}>CWE-</span>
+                          <input
+                            type="text"
+                            value={cwe.cwe_id || ''}
+                            onChange={(e) => handleCweChange(vi, ci, 'cwe_id', e.target.value)}
+                            onBlur={async (e) => {
+                              const id = e.target.value.replace(/\D/g, '');
+                              if (!id) return;
+                              // Auto-generate URL from number
+                              handleCweChange(vi, ci, 'cwe_url', `https://cwe.mitre.org/data/definitions/${id}.html`);
+                              // Only auto-fetch title if name field is still empty
+                              if (cwe.cwe_name && cwe.cwe_name.trim() !== '') return;
+                              const ref = await fetchCweTitle(id);
+                              handleCweChange(vi, ci, 'cwe_name', ref.cwe_name);
+                            }}
+                            placeholder="e.g. 89"
+                            style={{ width: '70px' }}
+                            title="CWE number"
+                          />
+                        </div>
+                        {/* Editable name input */}
+                        <input
+                          type="text"
+                          value={cwe.cwe_name || ''}
+                          onChange={(e) => handleCweChange(vi, ci, 'cwe_name', e.target.value)}
+                          placeholder="CWE name (auto-filled or type manually)"
+                          style={{ flex: 1 }}
+                          title="CWE name – auto-filled from MITRE when number is entered, editable"
+                        />
+                        {/* MITRE link */}
+                        {cwe.cwe_url && (
+                          <a
+                            href={cwe.cwe_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-secondary"
+                            title="Open MITRE CWE page"
+                            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                          >
+                            🔗 MITRE
+                          </a>
+                        )}
+                        {/* Remove button */}
+                        <button
+                          type="button"
+                          onClick={() => removeCweReference(vi, ci)}
+                          className="btn btn-sm btn-danger"
+                          title="Remove CWE reference"
+                          style={{ flexShrink: 0 }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
                 {/* Internal Notes - not exported */}
                 <div className="form-group">
                   <label>Internal Notes <span style={{ fontSize: '0.85em', color: '#666' }}>(Not included in final report)</span></label>
@@ -1697,7 +1789,7 @@ export function VulnerabilitiesSection({
                 <EndpointsSection vulnIndex={vi} vuln={vuln} handlers={handlers} />
                 
                 {/* Attacks section (with AI enhancement for text blocks) */}
-                <AttacksSection vulnIndex={vi} vuln={vuln} handlers={handlers} reportId={reportId} />
+                <AttacksSection vulnIndex={vi} vuln={vuln} handlers={handlers} reportId={reportId} selectedModel={selectedModel} onModelChange={onModelChange} />
               </>
             )}
           </div>

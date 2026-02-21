@@ -2,91 +2,243 @@
    AI ENHANCEMENT STYLES
    ============================================================================ */
 
-/* AI Enhance Button */
-.btn-ai {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 6px 12px;
+/* ============================================================================
+   AI MICRO-TOOLBAR — cybergreen dark theme
+   Palette:
+     bg-deep   #0d1117   toolbar background
+     bg-mid    #161b22   model pill track / saved list bg
+     bg-item   #1c2128   hover surface
+     border    #30363d   subtle dividers
+     green     #22c55e   ⚡Fast active accent
+     green-dim #16a34a   green hover / border
+     violet    #7c3aed   🧠Powerful active accent
+     txt-dim   #6e7681   muted labels
+     txt-mid   #8b949e   default text
+     txt-hi    #e6edf3   bright text
+   ============================================================================ */
+
+/* ── Toolbar container — NO wrap, single solid row ── */
+.ai-toolbar {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;           /* fix: was wrapping, causing white bg bleed */
+  gap: 0;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 3px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.55);
+}
+
+.ai-toolbar--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ── Model toggle track ── */
+.ai-toolbar-model {
+  display: inline-flex;
+  align-items: center;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 5px;
+  padding: 2px;
+  gap: 2px;
+}
+
+/* Base state — dim, clearly unselected */
+.ai-toolbar-model-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1.5px solid #30363d;
   border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6e7681;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+.ai-toolbar-model-btn:hover:not(:disabled) {
+  color: #8b949e;
+  border-color: #484f58;
+  background: #1c2128;
+}
+
+/* ⚡ Fast active — solid green fill */
+.ai-toolbar-model-btn--active-fast {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+  color: #000 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 10px rgba(34,197,94,0.45);
+}
+
+/* 🧠 Powerful active — solid violet fill */
+.ai-toolbar-model-btn--active-powerful {
+  background: #7c3aed !important;
+  border-color: #7c3aed !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 10px rgba(124,58,237,0.45);
+}
+
+/* ── Vertical separator ── */
+.ai-toolbar-sep {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: #30363d;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ── Action buttons ── */
+.ai-toolbar-action {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  padding: 0 9px;
+  height: 28px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #8b949e;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.13s ease, color 0.13s ease;
+  white-space: nowrap;
+  letter-spacing: 0.15px;
 }
 
-.btn-ai:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+.ai-toolbar-action:hover:not(:disabled) {
+  background: #1c2128;
+  color: #22c55e;
 }
 
-.btn-ai:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.ai-toolbar-action--active {
+  background: #1c2128;
+  color: #22c55e;
 }
 
-/* AI Dropdown Container */
-.ai-enhance-dropdown {
+/* ── Saved prompts popover ── */
+.ai-toolbar-saved-wrap {
   position: relative;
-  display: inline-block;
 }
 
-.ai-dropdown-menu {
+.ai-toolbar-saved-list {
   position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 4px;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  min-width: 280px;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.65);
+  z-index: 1100;
+  min-width: 240px;
+  max-width: 320px;
   overflow: hidden;
 }
 
-.ai-dropdown-item {
+.ai-toolbar-saved-header {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
-  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 12px;
+  border-bottom: 1px solid #30363d;
+  font-size: 10px;
+  font-weight: 700;
+  color: #6e7681;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.ai-toolbar-saved-close {
+  background: none;
   border: none;
-  background: white;
+  color: #6e7681;
+  font-size: 16px;
   cursor: pointer;
-  transition: background-color 0.2s;
-  text-align: left;
-}
-
-.ai-dropdown-item:hover {
-  background: #f7fafc;
-}
-
-.ai-dropdown-item:not(:last-child) {
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.ai-dropdown-icon {
-  font-size: 18px;
+  padding: 0;
   line-height: 1;
-  margin-top: 2px;
+  transition: color 0.12s;
 }
 
-.ai-dropdown-title {
-  font-weight: 600;
-  color: #2d3748;
-  font-size: 14px;
-  margin-bottom: 2px;
+.ai-toolbar-saved-close:hover { color: #e6edf3; }
+
+/* Row wrapper */
+.ai-toolbar-saved-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #21262d;
 }
 
-.ai-dropdown-desc {
+.ai-toolbar-saved-row:last-child { border-bottom: none; }
+
+.ai-toolbar-saved-row:hover {
+  background: #1c2128;
+}
+
+.ai-toolbar-saved-item {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: #8b949e;
   font-size: 12px;
-  color: #718096;
-  line-height: 1.4;
+  cursor: pointer;
+  transition: color 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.ai-toolbar-saved-item:hover {
+  color: #e6edf3;
+}
+
+/* Delete (×) button */
+.ai-toolbar-saved-delete {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-right: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #6e7681;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.ai-toolbar-saved-delete:hover {
+  background: rgba(248,81,73,0.15);
+  color: #f85149;
+}
+
+/* Responsive: allow wrap only on very small screens */
+@media (max-width: 480px) {
+  .ai-toolbar { flex-wrap: wrap; }
+}
+
+
+
+
 
 /* AI Modal Overlay */
 .ai-modal-overlay {
@@ -353,15 +505,16 @@
 /* Form Group with AI Controls */
 .form-group-header-with-ai {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   margin-bottom: 8px;
 }
 
 .ai-controls-inline {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 /* AI Enhancing Indicator */
@@ -405,10 +558,6 @@
     margin: 10px;
   }
 
-  .ai-dropdown-menu {
-    min-width: 240px;
-  }
-
   .ai-modal-text-box {
     max-height: 150px;
     font-size: 12px;
@@ -429,30 +578,7 @@
   }
 }
 
-/* Dark Mode Support (optional) */
-@media (prefers-color-scheme: dark) {
-  .ai-dropdown-menu {
-    background: #2d3748;
-    border-color: #4a5568;
-  }
 
-  .ai-dropdown-item {
-    background: #2d3748;
-    color: #e2e8f0;
-  }
-
-  .ai-dropdown-item:hover {
-    background: #4a5568;
-  }
-
-  .ai-dropdown-title {
-    color: #e2e8f0;
-  }
-
-  .ai-dropdown-desc {
-    color: #a0aec0;
-  }
-}
 
 /* ============================================================================
    CUSTOM PROMPT INPUT
@@ -490,89 +616,13 @@
   margin-top: 8px;
 }
 
-/* ============================================================================
-   SAVED PROMPTS LIST
-   ============================================================================ */
 
-.ai-saved-prompts-list {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 4px;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1001;
-  min-width: 320px;
-  max-width: 400px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.ai-saved-prompts-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f7fafc;
-  font-weight: 600;
-  font-size: 13px;
-  color: #2d3748;
-}
-
-.ai-close-saved {
-  background: none;
-  border: none;
-  font-size: 20px;
-  color: #a0aec0;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-}
-
-.ai-close-saved:hover {
-  background: #e2e8f0;
-  color: #2d3748;
-}
-
-.ai-saved-prompt-item {
-  display: block;
-  width: 100%;
-  padding: 10px 12px;
-  text-align: left;
-  background: white;
-  border: none;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
-  font-size: 13px;
-  color: #4a5568;
-  transition: background-color 0.2s;
-}
-
-.ai-saved-prompt-item:hover {
-  background: #f7fafc;
-}
-
-.ai-saved-prompt-item:last-child {
-  border-bottom: none;
-}
 
 /* ============================================================================
    DROPDOWN DIVIDER
    ============================================================================ */
 
-.ai-dropdown-divider {
-  height: 1px;
-  background: #e2e8f0;
-  margin: 4px 0;
-}
+
 
 /* ============================================================================
    CUSTOM PROMPT DISPLAY IN MODAL
@@ -744,29 +794,25 @@
    ============================================================================ */
 
 .ai-modal-text-box::-webkit-scrollbar,
-.ai-result-text-box::-webkit-scrollbar,
-.ai-saved-prompts-list::-webkit-scrollbar {
+.ai-result-text-box::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 .ai-modal-text-box::-webkit-scrollbar-track,
-.ai-result-text-box::-webkit-scrollbar-track,
-.ai-saved-prompts-list::-webkit-scrollbar-track {
+.ai-result-text-box::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 4px;
 }
 
 .ai-modal-text-box::-webkit-scrollbar-thumb,
-.ai-result-text-box::-webkit-scrollbar-thumb,
-.ai-saved-prompts-list::-webkit-scrollbar-thumb {
+.ai-result-text-box::-webkit-scrollbar-thumb {
   background: #cbd5e0;
   border-radius: 4px;
 }
 
 .ai-modal-text-box::-webkit-scrollbar-thumb:hover,
-.ai-result-text-box::-webkit-scrollbar-thumb:hover,
-.ai-saved-prompts-list::-webkit-scrollbar-thumb:hover {
+.ai-result-text-box::-webkit-scrollbar-thumb:hover {
   background: #a0aec0;
 }
 
@@ -984,3 +1030,57 @@
     width: 100%;
   }
 }
+
+
+/* ============================================================================
+   MODEL BADGE — in AI Result modal header
+   ============================================================================ */
+
+.ai-result-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ai-model-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.ai-model-badge--fast {
+  background: #ebf8ff;
+  color: #2b6cb0;
+  border: 1px solid #bee3f8;
+}
+
+.ai-model-badge--powerful {
+  background: #faf5ff;
+  color: #6b46c1;
+  border: 1px solid #d6bcfa;
+}
+
+/* ============================================================================
+   EDITABLE HINT — in preview modal custom prompt label
+   ============================================================================ */
+
+.ai-modal-editable-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: #667eea;
+  font-style: italic;
+  margin-left: 4px;
+}
+
+/* Compact textarea variant for custom prompt in preview modal */
+.ai-modal-textarea--compact {
+  min-height: 72px;
+  resize: vertical;
+}
+
+/* responsive wrap handled inside main block */
