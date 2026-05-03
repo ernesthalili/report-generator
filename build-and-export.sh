@@ -88,6 +88,7 @@ docker rm -f report-generator-test 2>/dev/null || true
 if docker run -d --name report-generator-test \
     -e MONGODB_URI=mongodb://host.docker.internal:27017/pentest-reports \
     -e JWT_SECRET=test_secret \
+    -e GROQ_API_KEY=test_key \
     -p 5001:5000 \
     ${IMAGE_NAME}:${IMAGE_TAG}; then
     
@@ -129,14 +130,25 @@ echo "📋 Next steps:"
 echo "   1. Test locally (optional):"
 echo "      docker compose -f docker-compose-image.yml up -d"
 echo ""
-echo "   2. Share with friends:"
+echo "   2. Share with users:"
 echo "      - ${EXPORT_FILE}"
 echo "      - docker-compose-image.yml"
+<<<<<<< HEAD
 echo "      - guida.md"
 echo ""
 echo "🎯 Friends will run:"
 echo "   docker load -i ${EXPORT_FILE}"
 echo "   docker compose -f docker-compose-image.yml up -d"
+=======
+echo "      - .env.example (for GROQ_API_KEY setup)"
+echo "      - DEPLOYMENT_GUIDE.md"
 echo ""
-echo "✨ No source code exposed, just the Docker image!"
+echo "🎯 Users will need to:"
+echo "   1. Get a free GROQ API key from https://console.groq.com"
+echo "   2. Add GROQ_API_KEY to their docker-compose-image.yml"
+echo "   3. Run: docker load -i ${EXPORT_FILE}"
+echo "   4. Run: docker-compose -f docker-compose-image.yml up -d"
+>>>>>>> f123053 (inserted some modification for docker)
+echo ""
+echo "✨ Image includes all features: Reports + AI Enhancement!"
 echo ""

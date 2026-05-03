@@ -45,9 +45,15 @@ COPY --chown=nodejs:nodejs docxtemplater-crossref-module ./docxtemplater-crossre
 # Copy built frontend
 COPY --from=builder --chown=nodejs:nodejs /app/client/build ./client/build
 
+<<<<<<< HEAD
 # Create necessary directories with correct ownership
 # Both are mounted as Docker volumes at runtime - they must exist with correct permissions
 RUN mkdir -p uploads templates && chown -R nodejs:nodejs uploads templates
+=======
+# Create necessary directories with proper permissions
+RUN mkdir -p uploads templates && \
+    chown -R nodejs:nodejs uploads templates
+>>>>>>> f123053 (inserted some modification for docker)
 
 # Switch to non-root user
 USER nodejs
